@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/frankenphp/Dockerfile
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "8000:80"
+      - "5173:5173"
+    command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80
+
+  queue:
+    build:
+      context: .
+      dockerfile: docker/frankenphp/Dockerfile
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: php artisan queue:work --queue=creem-agent --tries=3 --verbose
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/frankenphp/Dockerfile
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -lc "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
