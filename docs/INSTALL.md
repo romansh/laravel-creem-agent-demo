@@ -15,8 +15,6 @@ This project supports two practical installation modes:
 
 Full step-by-step runbooks:
 
-- `docs/SCENARIO_1_OPENCLAW_FULL.md` — privileged install with OpenClaw, ngrok, Telegram, and full webhook flow
-- `docs/SCENARIO_2_PURE_AGENT_FULL.md` — current-user Laravel agent only, without OpenClaw
 - `docs/SCENARIO_1_OPENCLAW_SHORT.md` — short command sequence for OpenClaw scenario
 - `docs/SCENARIO_2_PURE_AGENT_SHORT.md` — short command sequence for pure agent scenario
 - `docs/SIMULATOR.md` — local Creem API simulator with SQLite history and internal webhook delivery
@@ -31,8 +29,12 @@ Preferred runtime for the Laravel app:
 - Uses `https://github.com/openclaw/openclaw-ansible`
 - Requires Debian/Ubuntu and `sudo` or root access
 - Recommended for a dedicated VPS or VM
+- Telegram should use native OpenClaw channel ownership with `CREEM_AGENT_TELEGRAM_MODE=openclaw`
 
 ### Mode B: Current-user standard agent
+
+- Uses Laravel-owned Telegram via `/creem-agent/telegram/webhook`
+- Set `CREEM_AGENT_TELEGRAM_MODE=laravel`
 
 # Installation Guide (streamlined)
 
@@ -84,49 +86,23 @@ docker compose -f docker-compose.frankenphp.yml exec app php artisan creem:test-
 
 Flow A is the quickest path for development and CI.
 
-Note — local package layout
+GitHub package access
 
-This demo expects the related package repositories to be available as sibling folders to the demo (so Composer can resolve the `path` repositories). If the demo is mounted at `/home/www/laravel-creem-agent-demo`, ensure the following sibling folders exist before running the commands above:
+The demo now resolves `romansh/laravel-creem`, `romansh/laravel-creem-cli`, and `romansh/laravel-creem-agent` from GitHub VCS repositories declared in `composer.json` over SSH.
 
-```
-/home/www/laravel-creem
-/home/www/laravel-creem-cli
-/home/www/laravel-creem-agent
-```
-
-If they are missing, clone them (example):
+If the repositories are private, configure SSH access before running `composer install`:
 
 ```bash
-cd /home/www
-git clone git@github.com:your-org/laravel-creem.git laravel-creem || true
-git clone git@github.com:your-org/laravel-creem-cli.git laravel-creem-cli || true
-git clone git@github.com:your-org/laravel-creem-agent.git laravel-creem-agent || true
+ssh -T git@github.com
 ```
 
-When the sibling folders are present, `composer install` inside the demo (or the Docker init command) will resolve the local path repos.
+The machine or container user running Composer must have read access to these repositories:
 
-Repo mount variable (flexible)
+- `romansh/laravel-creem`
+- `romansh/laravel-creem-cli`
+- `romansh/laravel-creem-agent`
 
-The compose file accepts a mount path variable `REPO_MOUNT`. If you prefer another host path than `/home/www`, set the variable before starting the stack.
-
-Option A — create a demo `.env` (recommended):
-
-```text
-# laravel-creem-agent-demo/.env
-REPO_MOUNT=/home/www
-```
-
-Option B — export in shell for a temporary override:
-
-```bash
-export REPO_MOUNT=/path/to/your/mount
-docker compose -f docker-compose.frankenphp.yml up -d
-```
-
-Notes:
-- The compose file uses `${REPO_MOUNT:-/home/www}` so `/home/www` is the default when `REPO_MOUNT` is not set.
-- Mounting the parent workspace (for example `/home/roman/php/run`) also works — in that case set `REPO_MOUNT=/home/roman/php/run` and the relative `../laravel-creem` entries in `composer.json` will resolve inside the container.
-- If you cannot or do not want to create `.env` in the repo, use `export` before running `docker compose`.
+`REPO_MOUNT` in `docker-compose.frankenphp.yml` is now optional and only useful when you want to mount extra local workspace files into the containers for debugging or recording.
 
 ### Flow B — Docker inside VirtualBox (recommended for isolated VM)
 
@@ -176,9 +152,11 @@ B1 — With OpenClaw (inside VM): if the VM has `sudo`, run the OpenClaw Ansible
 curl -fsSL https://raw.githubusercontent.com/openclaw/openclaw-ansible/main/install.sh | bash
 ```
 
-After OpenClaw is provisioned inside the VM, configure `OPENCLAW_ENDPOINT`, `OPENCLAW_WORKSPACE_PATH` in the guest `.env`, and verify using the agent endpoints.
+After OpenClaw is provisioned inside the VM, configure `CREEM_AGENT_TELEGRAM_MODE=openclaw`, `OPENCLAW_TELEGRAM_BOT_TOKEN`, `OPENCLAW_ENDPOINT`, `OPENCLAW_WORKSPACE_PATH` in the guest `.env`, generate the Telegram channel snippet with `php artisan creem-agent:openclaw-telegram-config`, then start `openclaw gateway` and approve the first Telegram pairing.
 
 B2 — Without OpenClaw (pure agent): skip the privileged installer and run only the Docker stack inside the guest (commands above). This is the simplest VM-based path when `sudo` is unavailable.
+
+In B2, keep Telegram on Laravel with `CREEM_AGENT_TELEGRAM_MODE=laravel` and register the bot webhook to `https://YOUR-NGROK-URL/creem-agent/telegram/webhook`.
 
 -- End of recommended flows --
 

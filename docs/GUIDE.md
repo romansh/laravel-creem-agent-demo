@@ -122,7 +122,7 @@ If no VM is needed, ngrok can expose the local machine directly. If `sudo` is un
 
 The agent works fully standalone but supports optional OpenClaw integration. When enabled, OpenClaw can trigger heartbeats, route extended natural language queries, and use the agent as a registered tool in its gateway.
 
-What was missing before was the concrete attachment model. In this project, OpenClaw is treated as an external runtime, while Laravel remains the source of truth for store state, heartbeat execution, and notifications.
+What was missing before was the concrete Telegram ownership model. In this project, OpenClaw is treated as an external runtime, while Laravel remains the source of truth for store state, heartbeat execution, and notifications.
 
 ### How OpenClaw connects here
 
@@ -131,7 +131,8 @@ Instead of MCP, the integration is intentionally simple:
 1. OpenClaw reads current store state from `GET /creem-agent/status`
 2. OpenClaw forwards human prompts to `POST /creem-agent/chat`
 3. OpenClaw triggers proactive monitoring by running `php artisan creem-agent:heartbeat --all-stores`
-4. OpenClaw can keep its own orchestration note in `~/.openclaw/workspace/HEARTBEAT.md`
+4. OpenClaw owns Telegram through its native gateway channel when `CREEM_AGENT_TELEGRAM_MODE=openclaw`
+5. OpenClaw can keep its own orchestration note in `~/.openclaw/workspace/HEARTBEAT.md`
 
 This gives us a stable contract even if OpenClaw's own installation method changes.
 
@@ -145,10 +146,31 @@ On the Laravel side, these environment variables are used when OpenClaw is prese
 
 ```env
 CREEM_AGENT_OPENCLAW=true
+CREEM_AGENT_TELEGRAM_MODE=openclaw
+OPENCLAW_TELEGRAM_BOT_TOKEN=123:abc
 OPENCLAW_ENDPOINT=http://127.0.0.1:4110
 OPENCLAW_WORKSPACE_PATH=/home/roman/.openclaw/workspace
 OPENCLAW_SHARED_SECRET=change-me
 ```
+
+Then render a starter Telegram channel snippet from Laravel:
+
+```bash
+php artisan creem-agent:openclaw-telegram-config
+```
+
+Add that snippet to the OpenClaw gateway config, run `openclaw gateway`, and approve the first Telegram DM with `openclaw pairing approve telegram <CODE>`.
+
+If OpenClaw is not present, switch to the Laravel-owned Telegram path instead:
+
+```env
+CREEM_AGENT_OPENCLAW=false
+CREEM_AGENT_TELEGRAM_MODE=laravel
+CREEM_AGENT_TELEGRAM_TOKEN=123:abc
+CREEM_AGENT_TELEGRAM_CHAT_ID=123456789
+```
+
+In that mode Telegram should point to `/creem-agent/telegram/webhook`, not to OpenClaw.
 
 ### Minimal verification
 

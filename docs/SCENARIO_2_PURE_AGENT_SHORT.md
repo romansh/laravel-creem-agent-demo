@@ -37,6 +37,7 @@ CREEM_API_KEY=creem_test_...
 CREEM_WEBHOOK_SECRET=whsec_...
 CREEM_TEST_MODE=true
 CREEM_AGENT_OPENCLAW=false
+CREEM_AGENT_TELEGRAM_MODE=laravel
 CREEM_AGENT_DEFAULT_STORE=default
 CREEM_AGENT_TELEGRAM_TOKEN=...
 CREEM_AGENT_TELEGRAM_CHAT_ID=...
@@ -55,6 +56,13 @@ Creem webhook URL:
 
 ```text
 https://YOUR-NGROK-URL/creem/webhook
+```
+
+Telegram webhook URL:
+
+```bash
+curl -s -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+  -d "url=https://YOUR-NGROK-URL/creem-agent/telegram/webhook"
 ```
 
 ## Verify
@@ -79,6 +87,7 @@ php artisan creem-agent:install
 php artisan serve --host=0.0.0.0 --port=8000
 php artisan queue:work --queue=creem-agent
 php artisan schedule:work
+```
 
 ## Guest Additions & Shared Folder (optional)
 

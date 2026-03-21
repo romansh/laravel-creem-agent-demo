@@ -12,7 +12,6 @@ mkdir -p "$DEST_DIR"
 rm -rf "$TARGET_DIR"
 cp -r "$(dirname "$0")" "$TARGET_DIR"
 chmod +x "$TARGET_DIR/run.sh" || true
-chmod +x "$TARGET_DIR/poll-telegram.sh" || true
 chmod +x "$TARGET_DIR/install.sh" || true
 
 echo "Installed."

@@ -31,17 +31,14 @@ echo "status" | ~/.openclaw/workspace/skills/openclaw-laravel-creem-agent-skill/
 Configuration
 
 - `AGENT_URL` defaults to `http://127.0.0.1:8000/creem-agent/chat`
-- `TELEGRAM_BOT_TOKEN` is required only for `poll-telegram.sh`
 
 Telegram options
 
-- Laravel webhook mode: use `/creem-agent/telegram/webhook`
-- OpenClaw-managed polling mode: run `poll-telegram.sh`, which forwards updates to the Laravel agent and posts replies back to Telegram
+- OpenClaw mode: configure Telegram natively in OpenClaw gateway via `https://docs.openclaw.ai/channels/telegram`
+- Pure Laravel mode: use `/creem-agent/telegram/webhook`
 
-Run the poller
+Render OpenClaw Telegram config from Laravel
 
 ```sh
-export TELEGRAM_BOT_TOKEN=your_bot_token_here
-export AGENT_URL=http://127.0.0.1:8000/creem-agent/chat
-~/.openclaw/workspace/skills/openclaw-laravel-creem-agent-skill/poll-telegram.sh
+php artisan creem-agent:openclaw-telegram-config
 ```

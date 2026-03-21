@@ -5,7 +5,6 @@
 - Creem API key: Creem Dashboard -> API Keys
 - Creem webhook secret: Creem Dashboard -> Webhooks
 - Telegram bot token: Telegram -> `@BotFather` -> `/newbot`
-- Telegram chat id: `curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" | jq`
 - ngrok authtoken: ngrok dashboard
 - Optional Slack webhook
 - Optional Discord webhook
@@ -64,14 +63,23 @@ CREEM_API_KEY=creem_test_...
 CREEM_WEBHOOK_SECRET=whsec_...
 CREEM_TEST_MODE=true
 CREEM_AGENT_OPENCLAW=true
+CREEM_AGENT_TELEGRAM_MODE=openclaw
 CREEM_AGENT_DEFAULT_STORE=default
-CREEM_AGENT_TELEGRAM_TOKEN=...
-CREEM_AGENT_TELEGRAM_CHAT_ID=...
+OPENCLAW_TELEGRAM_BOT_TOKEN=...
 CREEM_AGENT_SLACK_WEBHOOK=https://hooks.slack.com/services/...
 CREEM_AGENT_DISCORD_WEBHOOK=https://discord.com/api/webhooks/...
 OPENCLAW_ENDPOINT=http://127.0.0.1:4110
 OPENCLAW_WORKSPACE_PATH=/home/openclaw/.openclaw/workspace
 OPENCLAW_SHARED_SECRET=change-me
+```
+
+## OpenClaw Telegram channel
+
+```bash
+docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:openclaw-telegram-config
+openclaw gateway
+openclaw pairing list telegram
+openclaw pairing approve telegram <CODE>
 ```
 
 ## Start stack
@@ -96,6 +104,9 @@ curl -s -X POST http://127.0.0.1:8000/creem-agent/chat -H 'Content-Type: applica
 docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
 docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
 docker compose -f docker-compose.frankenphp.yml exec app php artisan creem:test-webhook checkout.completed
+openclaw gateway
+openclaw pairing list telegram
+```
 
 ## Guest Additions & Shared Folder (optional)
 

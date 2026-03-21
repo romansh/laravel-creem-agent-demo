@@ -7,7 +7,8 @@ This demo package for `laravel-creem-agent` contains configuration, prompts, and
 - `docker/` — Dockerfile and related artifacts (frankenphp, etc.).
 - `docker-compose.frankenphp.yml` — example Docker Compose file for running the demo service.
 - `creem-simulator/` — standalone Laravel app that simulates the Creem API with SQLite-backed demo history.
-- `docs/` — step-by-step scenarios and guides (SCENARIO_*.md, GUIDE.md, SIMULATOR.md, etc.).
+- `docs/` — user-facing setup guides and short scenarios.
+- `.resources/` — internal recording runbooks, full demo scenarios, and planning materials.
 
 ## Requirements
 - Docker and Docker Compose (recommended) for quick containerized setup.
@@ -42,7 +43,7 @@ Note: Several demo scripts assume the frankenphp container environment; local ex
 
 ## Scenarios and prompts
 Review the scenario documents:
-- `docs/SCENARIO_*.md` — scenario walkthroughs used to demonstrate agent capabilities.
+- `docs/SCENARIO_*.md` — user-facing short scenario walkthroughs.
 
 Use these files as input for manual testing or when wiring the demo into a test environment.
 
