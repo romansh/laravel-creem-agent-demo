@@ -1,2 +1,4 @@
 # Demo-specific ignored resources (internal)
 .resources/
+vendor/
+creem-simulator/.editorconfig

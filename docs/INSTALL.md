@@ -19,6 +19,7 @@ Full step-by-step runbooks:
 - `docs/SCENARIO_2_PURE_AGENT_FULL.md` — current-user Laravel agent only, without OpenClaw
 - `docs/SCENARIO_1_OPENCLAW_SHORT.md` — short command sequence for OpenClaw scenario
 - `docs/SCENARIO_2_PURE_AGENT_SHORT.md` — short command sequence for pure agent scenario
+- `docs/SIMULATOR.md` — local Creem API simulator with SQLite history and internal webhook delivery
 
 Preferred runtime for the Laravel app:
 
@@ -33,337 +34,260 @@ Preferred runtime for the Laravel app:
 
 ### Mode B: Current-user standard agent
 
-- Does not require `sudo`
-- Runs only the Laravel-side agent from the current user
-- Recommended for development, quick demos, CI, and restricted shells
+# Installation Guide (streamlined)
 
-## Optional VM Mode: VirtualBox
+This file gives a single, recommended path first (fastest to a working demo), with concise alternatives below.
 
-If you want a clean, reproducible environment that resembles a real VPS, run the whole stack inside VirtualBox.
+## Recommended primary flows
 
-### Install VirtualBox on the host
+Two primary flows are supported. Choose one and follow its short path — alternatives are provided but visually de-emphasized.
 
-On Ubuntu host:
+- Flow A — Docker on the host (fastest to a working instance).
+- Flow B — Docker inside a VirtualBox VM (recommended for an isolated, demo-like environment). Flow B has two main sub-variants: with OpenClaw (privileged install inside the VM) and without OpenClaw (pure agent).
 
-```bash
-sudo apt update
-sudo apt install -y virtualbox
-virtualbox
-```
+Below are concise step sequences for each primary flow.
 
-### Create the VM in the VirtualBox UI
+### Flow A — Docker on the host (fastest)
 
-1. Click `New`
-2. Name the VM, for example `creem-agent-demo-vm`
-3. Select `Linux` and `Ubuntu (64-bit)`
-4. Assign `4096 MB` RAM minimum
-5. Assign `2` CPU cores
-6. Create `30 GB` dynamically allocated disk
-7. Attach Ubuntu Server ISO
-8. Finish and boot the VM
-
-### Configure networking in the VirtualBox UI
-
-1. Open `Settings` for the VM
-2. Open `Network`
-3. Adapter 1 -> Enable -> `NAT`
-4. Adapter 1 -> `Advanced` -> `Port Forwarding`
-5. Add:
-
-- `ssh`: host `2222` -> guest `22`
-- `http-app`: host `8000` -> guest `80`
-- `vite`: host `5173` -> guest `5173`
-- `ngrok-inspector`: host `4040` -> guest `4040`
-
-Optional:
-
-1. Adapter 2 -> Enable -> `Host-Only Adapter`
-2. Use it when you want direct host-to-guest traffic outside NAT rules
-
-Recommended VM settings:
-
-- Guest OS: Ubuntu Server 24.04 LTS
-- CPU: 2 vCPU
-- Memory: 4 GB minimum
-- Disk: 30 GB dynamically allocated
-- Adapter 1: NAT
-- Adapter 2: Host-Only Adapter (optional)
-
-Recommended NAT port forwards:
-
-- Host `2222` → Guest `22`
-- Host `8000` → Guest `8000`
-- Host `5173` → Guest `5173`
-- Host `4040` → Guest `4040`
-
-Why these forwards:
-
-- `2222` lets you SSH into the VM
-- `8000` exposes Laravel locally to the host
-- `5173` exposes the Vite dev server if needed
-- `4040` exposes ngrok inspector on the host
-
-Minimal guest bootstrap:
-
-```bash
-sudo apt update
-sudo apt install -y git curl unzip zip php-cli php-mbstring php-xml php-curl php-sqlite3 composer
-```
-
-If the VM user has no `sudo`, skip privileged setup and use the current-user standard agent mode.
-
-## Preferred Runtime: Docker + FrankenPHP
-
-This repository includes:
-
-- `docker/frankenphp/Dockerfile`
-- `docker-compose.frankenphp.yml`
-
-One-time initialization:
+From the host shell:
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-  composer install &&
-  test -f .env || cp .env.example .env &&
-  mkdir -p database && touch database/database.sqlite &&
-  php artisan key:generate &&
-  php artisan vendor:publish --tag=creem-config --force &&
-  php artisan vendor:publish --tag=creem-cli-config --force &&
-  php artisan vendor:publish --tag=creem-agent-config --force &&
-  php artisan vendor:publish --tag=creem-agent-migrations --force &&
-  php artisan migrate &&
-  (php artisan octane:install --server=frankenphp --no-interaction || true)
+    composer install &&
+    test -f .env || cp .env.example .env &&
+    mkdir -p database && touch database/database.sqlite &&
+    php artisan key:generate &&
+    php artisan vendor:publish --tag=creem-config --force &&
+    php artisan vendor:publish --tag=creem-cli-config --force &&
+    php artisan vendor:publish --tag=creem-agent-config --force &&
+    php artisan vendor:publish --tag=creem-agent-migrations --force &&
+    php artisan migrate &&
+    (php artisan octane:install --server=frankenphp --no-interaction || true)
 '
 ```
 
-Start runtime services:
+Start services and run install:
 
 ```bash
 docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler
+docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
+docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
+curl -s http://127.0.0.1:8000/creem-agent/status | jq
 ```
 
-Use `php artisan serve` only if Docker is unavailable.
-
-## Step 1: Create Laravel App
+Optional: test webhooks
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
-composer create-project laravel/laravel . --prefer-dist
+docker compose -f docker-compose.frankenphp.yml exec app php artisan creem:test-webhook checkout.completed
 ```
 
-Or if already a Laravel project, skip this step.
+Flow A is the quickest path for development and CI.
 
-## Step 2: Install Packages
+Note — local package layout
 
-### Option A: From Packagist (when published)
-```bash
-composer require romansh/laravel-creem romansh/laravel-creem-cli romansh/laravel-creem-agent
+This demo expects the related package repositories to be available as sibling folders to the demo (so Composer can resolve the `path` repositories). If the demo is mounted at `/home/www/laravel-creem-agent-demo`, ensure the following sibling folders exist before running the commands above:
+
+```
+/home/www/laravel-creem
+/home/www/laravel-creem-cli
+/home/www/laravel-creem-agent
 ```
 
-### Option B: Local development (path repositories)
-Add to `composer.json`:
-```json
-{
-    "repositories": [
-        { "type": "path", "url": "../laravel-creem" },
-        { "type": "path", "url": "../laravel-creem-cli" },
-        { "type": "path", "url": "../laravel-creem-agent" }
-    ]
-}
-```
-Then:
-```bash
-composer require romansh/laravel-creem:@dev romansh/laravel-creem-cli:@dev romansh/laravel-creem-agent:@dev
-```
-
-## Step 3: Publish Configuration & Migrations
+If they are missing, clone them (example):
 
 ```bash
-php artisan vendor:publish --tag=creem-config
-php artisan vendor:publish --tag=creem-cli-config
-php artisan vendor:publish --tag=creem-agent-config
-php artisan vendor:publish --tag=creem-agent-migrations
-php artisan migrate
+cd /home/www
+git clone git@github.com:your-org/laravel-creem.git laravel-creem || true
+git clone git@github.com:your-org/laravel-creem-cli.git laravel-creem-cli || true
+git clone git@github.com:your-org/laravel-creem-agent.git laravel-creem-agent || true
 ```
 
-## Step 4: Configure Environment
+When the sibling folders are present, `composer install` inside the demo (or the Docker init command) will resolve the local path repos.
 
-Add to your `.env`:
+Repo mount variable (flexible)
 
-```env
-# Creem API (get key from https://creem.io/dashboard/api-keys)
-CREEM_API_KEY=creem_test_YOUR_KEY_HERE
-CREEM_WEBHOOK_SECRET=whsec_YOUR_SECRET_HERE
-CREEM_TEST_MODE=true
+The compose file accepts a mount path variable `REPO_MOUNT`. If you prefer another host path than `/home/www`, set the variable before starting the stack.
 
-# Agent settings
-CREEM_AGENT_DEFAULT_STORE=default
+Option A — create a demo `.env` (recommended):
 
-# Notifications (at least one recommended)
-CREEM_AGENT_SLACK_WEBHOOK=https://hooks.slack.com/services/XXX/YYY/ZZZ
-# CREEM_AGENT_TELEGRAM_TOKEN=your_bot_token
-# CREEM_AGENT_TELEGRAM_CHAT_ID=your_chat_id
-# CREEM_AGENT_DISCORD_WEBHOOK=https://discord.com/api/webhooks/XXX/YYY
+```text
+# laravel-creem-agent-demo/.env
+REPO_MOUNT=/home/www
 ```
 
-If you plan to receive real external webhooks via ngrok, also keep note of:
-
-- local app URL inside VM or host: `http://127.0.0.1:8000`
-- public webhook URL: `https://YOUR-NGROK-URL/creem/webhook`
-
-## Step 5: Run Setup Wizard
+Option B — export in shell for a temporary override:
 
 ```bash
-php artisan creem-agent:install
+export REPO_MOUNT=/path/to/your/mount
+docker compose -f docker-compose.frankenphp.yml up -d
 ```
 
-Expected output:
-```
-🤖 Creem Agent Installation Wizard
+Notes:
+- The compose file uses `${REPO_MOUNT:-/home/www}` so `/home/www` is the default when `REPO_MOUNT` is not set.
+- Mounting the parent workspace (for example `/home/roman/php/run`) also works — in that case set `REPO_MOUNT=/home/roman/php/run` and the relative `../laravel-creem` entries in `composer.json` will resolve inside the container.
+- If you cannot or do not want to create `.env` in the repo, use `export` before running `docker compose`.
 
-Step 1: Verifying API connection...
-  ✅ API connection successful
-Step 2: Detecting CLI backend...
-  ℹ️  Using laravel-creem-cli (Artisan) backend
-Step 3: Creating state storage...
-  ✅ State directory: /path/to/storage/creem-agent
-Step 4: Configured stores:
-  • default (heartbeat every 4h)
-Step 5: Notification channels:
-  ✅ Slack
-  ⬜ Telegram
-  ⬜ Discord
-  ✅ Database (always enabled)
+### Flow B — Docker inside VirtualBox (recommended for isolated VM)
 
-Setup complete! Run your first heartbeat:
-  php artisan creem-agent:heartbeat
-```
+Summary: provision a VM, mount the host repo into the guest (for example at `/hove/www`), then run the Docker-based setup inside the VM. This keeps host clean and simulates a small VPS.
 
-## Step 6: First Heartbeat
+Common VM bootstrap (guest):
 
 ```bash
-php artisan creem-agent:heartbeat
+sudo apt update
+sudo apt install -y git curl unzip zip docker.io docker-compose-plugin
+sudo usermod -aG docker $USER
+# log out and back in or reboot
 ```
 
-This creates an initial snapshot of your store and reports it to configured channels.
-
-## Step 7: Optional — Install Native Creem CLI
+Mount the host repo into the VM (see Appendix), then inside the guest:
 
 ```bash
-brew tap armitage-labs/creem
-brew install creem
-creem login --api-key creem_test_YOUR_KEY_HERE
-creem whoami  # Verify
+cd /hove/www/laravel-creem-agent-demo
+docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
+    composer install &&
+    test -f .env || cp .env.example .env &&
+    mkdir -p database && touch database/database.sqlite &&
+    php artisan key:generate &&
+    php artisan vendor:publish --tag=creem-config --force &&
+    php artisan vendor:publish --tag=creem-cli-config --force &&
+    php artisan vendor:publish --tag=creem-agent-config --force &&
+    php artisan vendor:publish --tag=creem-agent-migrations --force &&
+    php artisan migrate &&
+    (php artisan octane:install --server=frankenphp --no-interaction || true)
+'
 ```
 
-The agent automatically detects the CLI and uses it (faster for some operations).
+Start services and run install inside the VM:
 
-## Step 8: Optional — Install and Connect OpenClaw
+```bash
+docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler
+docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
+docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
+curl -s http://127.0.0.1:8000/creem-agent/status | jq
+```
 
-OpenClaw is optional. The Laravel agent works without it.
+Flow B has two sub-variants:
 
-For this project, the official installation path is `https://github.com/openclaw/openclaw-ansible`.
-
-Important upstream requirement:
-
-- `openclaw-ansible` is intended for Debian/Ubuntu hosts
-- it expects root or `sudo`/become access
-- if `sudo` is unavailable, use the fallback current-user standard agent mode described below
-
-### 8.1 Full OpenClaw installation with sudo
-
-Quick start:
+B1 — With OpenClaw (inside VM): if the VM has `sudo`, run the OpenClaw Ansible installer inside the VM and attach it to the local Laravel app. Quick command inside VM:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/openclaw/openclaw-ansible/main/install.sh | bash
 ```
 
-Manual install:
+After OpenClaw is provisioned inside the VM, configure `OPENCLAW_ENDPOINT`, `OPENCLAW_WORKSPACE_PATH` in the guest `.env`, and verify using the agent endpoints.
+
+B2 — Without OpenClaw (pure agent): skip the privileged installer and run only the Docker stack inside the guest (commands above). This is the simplest VM-based path when `sudo` is unavailable.
+
+-- End of recommended flows --
+
+## Alternative: no-Docker (fallback)
+
+If Docker isn't available on your host, use the current-user path below. It's slightly more manual but works on most Linux systems.
 
 ```bash
-sudo apt update && sudo apt install -y ansible git
-git clone https://github.com/openclaw/openclaw-ansible.git
-cd openclaw-ansible
-ansible-galaxy collection install -r requirements.yml
-./run-playbook.sh
+cd /home/roman/php/run/laravel-creem-agent-demo
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan vendor:publish --tag=creem-config
+php artisan vendor:publish --tag=creem-cli-config
+php artisan vendor:publish --tag=creem-agent-config
+php artisan vendor:publish --tag=creem-agent-migrations
+php artisan migrate
+php artisan creem-agent:install
+php artisan serve --host=0.0.0.0 --port=8000
+php artisan queue:work --queue=creem-agent
+php artisan schedule:work
 ```
 
-Development mode:
+Notes: this mode is suitable for development, CI, or restricted hosts. It assumes PHP, Composer and required PHP extensions are installed.
+
+## Optional: VirtualBox (shared folder + Guest Additions)
+
+If you prefer an isolated VM, use VirtualBox. The recommended setup is to run the demo inside the VM and share your host repository via a shared folder mounted inside the guest (for example at `/hove/www`).
+
+Short steps (details in the Appendix below):
+
+- Create a shared folder on the host (e.g. host `/home/roman/php/run`, name `repo_run`) via VirtualBox GUI or `VBoxManage`.
+- In the guest install guest additions or the distro guest packages and mount the shared folder, then either symlink or mount it at `/hove/www`.
+
+Example mount (guest):
 
 ```bash
-git clone https://github.com/openclaw/openclaw-ansible.git
-cd openclaw-ansible
-./run-playbook.sh -e openclaw_install_mode=development
+sudo apt update
+sudo apt install -y virtualbox-guest-dkms virtualbox-guest-utils
+sudo mkdir -p /hove/www
+sudo usermod -aG vboxsf $USER
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /hove/www
 ```
 
-After installation:
+After that, create per-package folders under `/hove/www` (e.g. `laravel-creem`, `laravel-creem-cli`, `laravel-creem-agent`) and operate from the guest.
+
+## Quick verification checklist
+
+- `curl -s http://127.0.0.1:8000/creem-agent/status | jq` → status JSON
+- `docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install` → wizard
+- `docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat` → heartbeat output
+
+## Appendix: VirtualBox Guest Additions & Shared Folder (detailed)
+
+To make the repo files available inside the guest at `/hove/www` (so each package can be a separate folder there), add a VirtualBox shared folder on the host and mount it manually in the guest. Steps below assume the host folder with repositories is `/home/roman/php/run` and the shared-folder name will be `repo_run`.
+
+Host (VirtualBox Manager):
+
+- Open VirtualBox, select the VM → Settings → Shared Folders → Add New Shared Folder.
+- Set "Folder Path" to `/home/roman/php/run` and "Folder Name" to `repo_run`.
+- (Optional) Check "Make Permanent". Do NOT check "Auto-mount" if you want to control the mount point (`/hove/www`) in the guest.
+
+Guest (Ubuntu Server inside VM):
+
+1. Install build tools / headers (needed if you use the Guest Additions ISO):
 
 ```bash
-sudo su - openclaw
-openclaw onboard --install-daemon
-openclaw status
-openclaw logs
+sudo apt update
+sudo apt install -y build-essential dkms linux-headers-$(uname -r)
 ```
 
-Alternative manual onboarding:
+2. Preferred: install distro guest packages (simpler):
 
 ```bash
-openclaw configure
-openclaw providers login
-openclaw gateway
-openclaw daemon install
-openclaw daemon start
-openclaw status
+sudo apt install -y virtualbox-guest-dkms virtualbox-guest-utils
 ```
 
-### 8.2 Project-side environment
-
-Add these values to `.env` if you want to enable the integration path:
-
-```env
-CREEM_AGENT_OPENCLAW=true
-OPENCLAW_ENDPOINT=http://127.0.0.1:4110
-OPENCLAW_WORKSPACE_PATH=/home/roman/.openclaw/workspace
-OPENCLAW_SHARED_SECRET=change-me
-```
-
-### 8.3 What OpenClaw should call
-
-OpenClaw can integrate with the Laravel app using these actions:
+If you prefer the Oracle Guest Additions ISO, insert it from the VirtualBox menu (Devices → Insert Guest Additions CD image...), then run:
 
 ```bash
-# Agent status
-curl -s http://127.0.0.1:8000/creem-agent/status | jq
-
-# Agent chat
-curl -s -X POST http://127.0.0.1:8000/creem-agent/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"status"}' | jq
-
-# Proactive heartbeat trigger
-php artisan creem-agent:heartbeat --all-stores
+sudo mkdir -p /mnt/cdrom
+sudo mount /dev/cdrom /mnt/cdrom || true
+sudo sh /mnt/cdrom/VBoxLinuxAdditions.run || true
 ```
 
-### 8.4 Suggested OpenClaw workspace heartbeat
+3. Create the mount point and add your user to the `vboxsf` group:
 
-Create `~/.openclaw/workspace/HEARTBEAT.md`:
-
-```md
-# OpenClaw Workspace Heartbeat
-
-## Tasks
-- Every 4 hours: run `php artisan creem-agent:heartbeat --all-stores`
-- Every 30 minutes: call `GET /creem-agent/status`
-- On human prompt: forward text to `POST /creem-agent/chat`
-
-## Escalation
-- If `past_due > 0`, notify immediately
-- If 3+ cancellations in one cycle, escalate as churn spike
-- If no changes, stay silent
+```bash
+sudo mkdir -p /hove/www
+sudo usermod -aG vboxsf $USER
+# Log out and back in (or reboot) to apply group membership
 ```
 
-### 8.5 Verification
+4. Mount the shared folder manually (replace UID/GID if needed):
+
+```bash
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /hove/www
+```
+
+5. Make the mount permanent (optional) — edit `/etc/fstab` and add one line (replace `1000:1000` with your `uid:gid` if different):
+
+```
+repo_run /hove/www vboxsf uid=1000,gid=1000,auto 0 0
+```
+
+Notes:
+- After mounting, the host's `/home/roman/php/run` will appear in the guest at `/hove/www` — create separate subfolders there for each package and install/clone packages into those directories.
+- If you used the Guest Additions ISO, a reboot may be required.
+- If permissions look incorrect, verify `uid`/`gid` options in the mount command or `/etc/fstab`.
 
 ```bash
 curl -s http://127.0.0.1:8000/creem-agent/status | jq

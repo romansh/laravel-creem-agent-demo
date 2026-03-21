@@ -79,4 +79,19 @@ php artisan creem-agent:install
 php artisan serve --host=0.0.0.0 --port=8000
 php artisan queue:work --queue=creem-agent
 php artisan schedule:work
+
+## Guest Additions & Shared Folder (optional)
+
+To make the host repo available inside the VM at `/hove/www`, add a VirtualBox shared folder (e.g. name `repo_run` pointing to `/home/roman/php/run`) and mount it in the guest:
+
+```bash
+# inside guest
+sudo apt update
+sudo apt install -y virtualbox-guest-dkms virtualbox-guest-utils
+sudo mkdir -p /hove/www
+sudo usermod -aG vboxsf $USER
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /hove/www
+```
+
+Then create per-package subfolders under `/hove/www` and install/clone packages there.
 ```

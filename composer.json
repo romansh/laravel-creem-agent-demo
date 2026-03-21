@@ -1,0 +1,22 @@
+{
+  "name": "romansh/laravel-creem-agent-demo",
+  "description": "Demo application glue for laravel-creem packages (local path repositories)",
+  "type": "project",
+  "require": {
+    "php": "^8.2",
+    "romansh/laravel-creem": "^1.2",
+    "romansh/laravel-creem-cli": "^1.2",
+    "romansh/laravel-creem-agent": "^1.2"
+  },
+  "repositories": [
+    { "type": "path", "url": "/home/www/laravel-creem-cli", "options": { "symlink": true, "canonical": false } },
+    { "type": "path", "url": "/home/www/laravel-creem-agent", "options": { "symlink": true, "canonical": false } }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Demo\\": "app/"
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
