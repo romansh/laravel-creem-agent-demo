@@ -7,27 +7,41 @@
 - Telegram bot token: Telegram -> `@BotFather` -> `/newbot`
 - Telegram chat id: `curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" | jq`
 - ngrok authtoken: ngrok dashboard
-- Optional Slack webhook
-- Optional Discord webhook
 
 ## Preferred runtime: Docker + FrankenPHP
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
-docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-  composer install &&
+docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
+ # Примечание: добавлена команда git config, чтобы избежать ошибок Git safe.directory при запуске Composer в контейнере
+ docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+  git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&
   mkdir -p database && touch database/database.sqlite &&
   php artisan key:generate &&
-  php artisan vendor:publish --tag=creem-config --force &&
-  php artisan vendor:publish --tag=creem-cli-config --force &&
-  php artisan vendor:publish --tag=creem-agent-config --force &&
-  php artisan vendor:publish --tag=creem-agent-migrations --force &&
-  php artisan migrate &&
-  (php artisan octane:install --server=frankenphp --no-interaction || true)
+  php artisan migrate --seed &&
+  php artisan octane:install --server=frankenphp --no-interaction
 '
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler
+# Примечание: добавлена команда git config, чтобы избежать ошибок Git safe.directory при запуске Composer в контейнере
+docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
+  git config --global --add safe.directory /app && composer install --no-interaction &&
+  test -f .env || cp .env.example .env &&
+  mkdir -p database && touch database/database.sqlite &&
+  php artisan key:generate &&
+  php artisan vendor:publish --tag=creem-config &&
+  php artisan vendor:publish --tag=creem-cli-config &&
+  php artisan vendor:publish --tag=creem-agent-config &&
+  php artisan vendor:publish --tag=creem-agent-migrations &&
+  php artisan migrate &&
+  php artisan octane:install --server=frankenphp --no-interaction
+'
+docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
 ```
+
+This assumes `ngrok` is already up.
+
+Set all tokens and variables now, before `creem-agent:install`, `creem-agent:heartbeat`, and Telegram webhook registration.
+This is the right point because `YOUR-NGROK-URL` is already known.
 
 ## `.env`
 
@@ -41,15 +55,22 @@ CREEM_AGENT_TELEGRAM_MODE=laravel
 CREEM_AGENT_DEFAULT_STORE=default
 CREEM_AGENT_TELEGRAM_TOKEN=...
 CREEM_AGENT_TELEGRAM_CHAT_ID=...
-CREEM_AGENT_SLACK_WEBHOOK=https://hooks.slack.com/services/...
-CREEM_AGENT_DISCORD_WEBHOOK=https://discord.com/api/webhooks/...
+```
+
+If you also run the simulator, fill `creem-simulator/.env` before starting `simulator`:
+
+```env
+CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
+CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
+CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
 
 ## ngrok
 
 ```bash
-ngrok config add-authtoken YOUR_NGROK_AUTHTOKEN
-ngrok http 8000
+export NGROK_AUTHTOKEN=YOUR_NGROK_AUTHTOKEN
+docker compose -f docker-compose.frankenphp.yml up -d ngrok
+curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url'
 ```
 
 Creem webhook URL:
@@ -57,6 +78,18 @@ Creem webhook URL:
 ```text
 https://YOUR-NGROK-URL/creem/webhook
 ```
+
+The same base URL is used for the Telegram webhook:
+
+After you get `YOUR-NGROK-URL`, use it for every public callback:
+
+- Creem webhook: `https://YOUR-NGROK-URL/creem/webhook`
+- Telegram webhook: `https://YOUR-NGROK-URL/creem-agent/telegram/webhook`
+- Simulator callback, if you want simulator to call the public app URL
+
+If you'd rather keep the token in your `.env`, add `NGROK_AUTHTOKEN=...` there (do not commit) and run `docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok` or load `.env` into your shell with `set -o allexport; source .env; set +o allexport` before running compose.
+
+If `ngrok` is already running, use the commands from the `Preferred runtime` block above.
 
 Telegram webhook URL:
 
@@ -91,16 +124,45 @@ php artisan schedule:work
 
 ## Guest Additions & Shared Folder (optional)
 
-To make the host repo available inside the VM at `/hove/www`, add a VirtualBox shared folder (e.g. name `repo_run` pointing to `/home/roman/php/run`) and mount it in the guest:
+To make the host repo available inside the VM at `/home/www`, add a VirtualBox shared folder (e.g. name `repo_run` pointing to `/home/roman/php/run`) and mount it in the guest:
 
 ```bash
 # inside guest
 sudo apt update
 sudo apt install -y virtualbox-guest-dkms virtualbox-guest-utils
-sudo mkdir -p /hove/www
+sudo mkdir -p /home/www
 sudo usermod -aG vboxsf $USER
-sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /hove/www
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /home/www
 ```
 
-Then create per-package subfolders under `/hove/www` and install/clone packages there.
+Then create per-package subfolders under `/home/www` and install/clone packages there.
+
+If these packages are private, use SSH agent forwarding so the key remains on the host:
+
+```bash
+# On host:
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_rsa
+ssh -A user@vm_ip
+
+# Inside VM:
+ssh git@github.com
+```
+
+This method requires SSH login to the VM (`ssh -A`) and won't work through the VirtualBox GUI.
+
+Make the mount permanent (optional) — append a line to `/etc/fstab` using `tee` (replace `1000`/`1000` with your `id -u`/`id -g`):
+
+```bash
+echo 'repo_run /home/www vboxsf uid=1000,gid=1000,auto 0 0' | sudo tee -a /etc/fstab
+```
+
+Test without reboot:
+
+```bash
+sudo mount -a
+mount | grep vboxsf
+ls -la /home/www
+lsmod | grep vboxsf || sudo modprobe vboxsf
+```
 ```

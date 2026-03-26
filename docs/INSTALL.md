@@ -6,7 +6,7 @@
 - Composer 2.x
 - Node.js 18+ and npm
 - A Creem.io account ([sign up](https://creem.io/dashboard))
-- Optional: Slack/Telegram/Discord for notifications
+- Optional: Telegram for notifications
 - Optional: `creem` CLI via Homebrew
 
 ## Installation Modes
@@ -51,28 +51,64 @@ Below are concise step sequences for each primary flow.
 
 ### Flow A — Docker on the host (fastest)
 
+When to fill tokens and variables: after `ngrok` is up, but before the init/install commands below.
+That way you already know `YOUR-NGROK-URL` and can immediately place the correct callback URLs into `.env`.
+
+Agent app `.env`:
+
+```env
+APP_URL=http://127.0.0.1:8000
+CREEM_API_KEY=creem_test_...
+CREEM_WEBHOOK_SECRET=whsec_...
+CREEM_TEST_MODE=true
+CREEM_AGENT_DEFAULT_STORE=default
+CREEM_AGENT_TELEGRAM_MODE=laravel
+CREEM_AGENT_TELEGRAM_TOKEN=...
+CREEM_AGENT_TELEGRAM_CHAT_ID=...
+OCTANE_SERVER=frankenphp
+```
+
+If you use the simulator, set these in `creem-simulator/.env` before starting `simulator`:
+
+```env
+CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
+CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
+CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
+```
+
 From the host shell:
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
-docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-    composer install &&
+docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
+# Примечание: добавлена команда git config, чтобы избежать ошибок Git safe.directory при запуске Composer в контейнере
+docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+    git config --global --add safe.directory /app && composer install --no-interaction &&
     test -f .env || cp .env.example .env &&
     mkdir -p database && touch database/database.sqlite &&
     php artisan key:generate &&
-    php artisan vendor:publish --tag=creem-config --force &&
-    php artisan vendor:publish --tag=creem-cli-config --force &&
-    php artisan vendor:publish --tag=creem-agent-config --force &&
-    php artisan vendor:publish --tag=creem-agent-migrations --force &&
-    php artisan migrate &&
-    (php artisan octane:install --server=frankenphp --no-interaction || true)
+    php artisan migrate --seed &&
+    php artisan octane:install --server=frankenphp --no-interaction
 '
+# Примечание: добавлена команда git config, чтобы избежать ошибок Git safe.directory при запуске Composer в контейнере
+docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
+    git config --global --add safe.directory /app && composer install --no-interaction &&
+    test -f .env || cp .env.example .env &&
+    mkdir -p database && touch database/database.sqlite &&
+    php artisan key:generate &&
+    php artisan vendor:publish --tag=creem-config &&
+    php artisan vendor:publish --tag=creem-cli-config &&
+    php artisan vendor:publish --tag=creem-agent-config &&
+    php artisan vendor:publish --tag=creem-agent-migrations &&
+    php artisan migrate &&
+    php artisan octane:install --server=frankenphp --no-interaction
+'
+docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
 ```
 
 Start services and run install:
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler
 docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
 docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
 curl -s http://127.0.0.1:8000/creem-agent/status | jq
@@ -96,6 +132,21 @@ If the repositories are private, configure SSH access before running `composer i
 ssh -T git@github.com
 ```
 
+If your packages are not public, use SSH agent forwarding so the private key stays on the host:
+
+```bash
+# On host:
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_rsa
+# Connect to VM with agent forwarding
+ssh -A user@vm_ip
+
+# Inside VM you can then run:
+ssh git@github.com
+```
+
+Note: this only works when you SSH into the VM (`ssh -A`), not when using the VirtualBox GUI.
+
 The machine or container user running Composer must have read access to these repositories:
 
 - `romansh/laravel-creem`
@@ -105,6 +156,8 @@ The machine or container user running Composer must have read access to these re
 `REPO_MOUNT` in `docker-compose.frankenphp.yml` is now optional and only useful when you want to mount extra local workspace files into the containers for debugging or recording.
 
 ### Flow B — Docker inside VirtualBox (recommended for isolated VM)
+
+In the VM the timing is the same: first raise `ngrok`, then fill `.env`, then run the initialization commands.
 
 Summary: provision a VM, mount the host repo into the guest (for example at `/hove/www`), then run the Docker-based setup inside the VM. This keeps host clean and simulates a small VPS.
 
@@ -120,25 +173,34 @@ sudo usermod -aG docker $USER
 Mount the host repo into the VM (see Appendix), then inside the guest:
 
 ```bash
-cd /hove/www/laravel-creem-agent-demo
-docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-    composer install &&
+cd /home/www/laravel-creem-agent-demo
+docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
+docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+    git config --global --add safe.directory /app && composer install --no-interaction &&
     test -f .env || cp .env.example .env &&
     mkdir -p database && touch database/database.sqlite &&
     php artisan key:generate &&
-    php artisan vendor:publish --tag=creem-config --force &&
-    php artisan vendor:publish --tag=creem-cli-config --force &&
-    php artisan vendor:publish --tag=creem-agent-config --force &&
-    php artisan vendor:publish --tag=creem-agent-migrations --force &&
-    php artisan migrate &&
-    (php artisan octane:install --server=frankenphp --no-interaction || true)
+    php artisan migrate --seed &&
+    php artisan octane:install --server=frankenphp --no-interaction
 '
+docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
+    git config --global --add safe.directory /app && composer install --no-interaction &&
+    test -f .env || cp .env.example .env &&
+    mkdir -p database && touch database/database.sqlite &&
+    php artisan key:generate &&
+    php artisan vendor:publish --tag=creem-config &&
+    php artisan vendor:publish --tag=creem-cli-config &&
+    php artisan vendor:publish --tag=creem-agent-config &&
+    php artisan vendor:publish --tag=creem-agent-migrations &&
+    php artisan migrate &&
+    php artisan octane:install --server=frankenphp --no-interaction
+'
+docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
 ```
 
 Start services and run install inside the VM:
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler
 docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
 docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
 curl -s http://127.0.0.1:8000/creem-agent/status | jq
@@ -156,7 +218,7 @@ After OpenClaw is provisioned inside the VM, configure `CREEM_AGENT_TELEGRAM_MOD
 
 B2 — Without OpenClaw (pure agent): skip the privileged installer and run only the Docker stack inside the guest (commands above). This is the simplest VM-based path when `sudo` is unavailable.
 
-In B2, keep Telegram on Laravel with `CREEM_AGENT_TELEGRAM_MODE=laravel` and register the bot webhook to `https://YOUR-NGROK-URL/creem-agent/telegram/webhook`.
+In B2, keep Telegram on Laravel with `CREEM_AGENT_TELEGRAM_MODE=laravel` and register the bot webhook to `https://YOUR-NGROK-URL/creem-agent/telegram/webhook`, where `YOUR-NGROK-URL` comes from the bundled Docker `ngrok` service.
 
 -- End of recommended flows --
 
@@ -245,7 +307,7 @@ sudo sh /mnt/cdrom/VBoxLinuxAdditions.run || true
 3. Create the mount point and add your user to the `vboxsf` group:
 
 ```bash
-sudo mkdir -p /hove/www
+sudo mkdir -p /home/www
 sudo usermod -aG vboxsf $USER
 # Log out and back in (or reboot) to apply group membership
 ```
@@ -253,13 +315,30 @@ sudo usermod -aG vboxsf $USER
 4. Mount the shared folder manually (replace UID/GID if needed):
 
 ```bash
-sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /hove/www
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /home/www
 ```
 
-5. Make the mount permanent (optional) — edit `/etc/fstab` and add one line (replace `1000:1000` with your `uid:gid` if different):
 
+5. Make the mount permanent (optional) — append a line to `/etc/fstab` using `tee`. Replace `1000`/`1000` with your `id -u`/`id -g` if different.
+
+Example (append safely as root):
+
+```bash
+echo 'repo_run /home/www vboxsf uid=1000,gid=1000,auto 0 0' | sudo tee -a /etc/fstab
 ```
-repo_run /hove/www vboxsf uid=1000,gid=1000,auto 0 0
+
+Then test without rebooting:
+
+```bash
+sudo mount -a
+mount | grep vboxsf
+```
+
+If the mount is empty after a reboot, ensure the kernel module is loaded and the `vboxsf` service is running:
+
+```bash
+lsmod | grep vboxsf || sudo modprobe vboxsf
+systemctl status vboxservice || true
 ```
 
 Notes:
@@ -333,18 +412,30 @@ What you do **not** get in no-sudo mode:
 - hardened OpenClaw host setup
 - system service management from `openclaw-ansible`
 
-## Step 9: Optional — Install ngrok and expose webhooks
+## Step 9: Optional — Start ngrok in Docker and expose webhooks
 
-If Creem needs to call your local app or VirtualBox guest, expose the Laravel port using ngrok.
+If Creem needs to call your local app or VirtualBox guest, expose the Laravel app through the bundled `ngrok` container.
 
 Typical flow:
 
 ```bash
-# Authenticate ngrok once
-ngrok config add-authtoken YOUR_NGROK_TOKEN
+# Provide the auth token for docker compose
+export NGROK_AUTHTOKEN=YOUR_NGROK_TOKEN
 
-# Tunnel Laravel
-ngrok http 8000
+# Tunnel the app container
+docker compose -f docker-compose.frankenphp.yml up -d ngrok
+
+# Read the public HTTPS URL
+curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url'
+
+## Option B — keep token in .env and load it (safer for long-running sessions)
+## Add `NGROK_AUTHTOKEN=your_token` to your `.env` (do not commit). Then either:
+docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
+
+# or load `.env` into the current shell session before starting compose:
+set -o allexport; source .env; set +o allexport
+docker compose -f docker-compose.frankenphp.yml up -d ngrok
+curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url'
 ```
 
 Take the generated HTTPS URL and configure Creem webhooks to:
@@ -355,18 +446,19 @@ https://YOUR-NGROK-URL/creem/webhook
 
 Recommended setup combinations:
 
-### Host machine runs ngrok, app runs inside VirtualBox
+### VirtualBox guest runs the full Docker stack
 
-1. In VirtualBox, forward host `8000` to guest `8000`
-2. Inside the guest, run `docker compose -f docker-compose.frankenphp.yml up -d app`
-3. On the host, run `ngrok http 8000`
-4. Put the ngrok HTTPS URL into Creem webhook settings
+1. In VirtualBox, forward host `8000` to guest `8000` and host `4040` to guest `4040`
+2. Inside the guest, run `docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler ngrok`
+3. Read the HTTPS URL from `http://127.0.0.1:4040/api/tunnels`
+4. Put that HTTPS URL into Creem webhook settings
 
-### VM runs ngrok directly
+### Local machine runs the full Docker stack
 
-1. Inside the guest, run `docker compose -f docker-compose.frankenphp.yml up -d app`
-2. Inside the guest, run `ngrok http 8000`
-3. Put the ngrok HTTPS URL into Creem webhook settings
+1. Export `NGROK_AUTHTOKEN` in the same shell that runs Docker Compose
+2. Run `docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler ngrok`
+3. Read the HTTPS URL from `http://127.0.0.1:4040/api/tunnels`
+4. Put that HTTPS URL into Creem webhook settings
 
 Verification:
 
@@ -418,7 +510,7 @@ Edit `config/creem-agent.php`:
     'default' => [
         'profile' => 'default',
         'heartbeat_frequency' => 4,
-        'notifications' => ['slack', 'database'],
+        'notifications' => ['telegram', 'database'],
     ],
     'secondary' => [
         'profile' => 'secondary',
@@ -471,7 +563,8 @@ Add the secondary profile to `config/creem.php`:
 ### Webhooks are not arriving
 - Confirm the webhook URL in Creem is `https://YOUR-NGROK-URL/creem/webhook`
 - If using VirtualBox, confirm host `8000` is forwarded to guest `8000`
-- Confirm Laravel is listening on `0.0.0.0:8000` when inside a VM
+- If using VirtualBox, confirm host `4040` is forwarded to guest `4040`
+- Confirm the `ngrok` container is running: `docker compose -f docker-compose.frankenphp.yml ps ngrok`
 - Check ngrok inspector on `http://127.0.0.1:4040`
 - Verify `CREEM_WEBHOOK_SECRET` matches the value configured in Creem
 
