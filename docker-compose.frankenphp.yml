@@ -32,6 +32,19 @@ services:
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
     command: sh -lc "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
 
+  ngrok:
+    image: ngrok/ngrok:latest
+    depends_on:
+      - app
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command:
+      - http
+      - app:80
+      - --log=stdout
+    ports:
+      - "4040:4040"
+
   simulator:
     build:
       context: ./creem-simulator

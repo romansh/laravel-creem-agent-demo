@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:1-php8.3
+FROM dunglas/frankenphp:1-php8.4
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git unzip zip libsqlite3-dev \
