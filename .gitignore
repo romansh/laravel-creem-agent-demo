@@ -2,3 +2,4 @@
 .resources/
 vendor/
 creem-simulator/.editorconfig
+.env
