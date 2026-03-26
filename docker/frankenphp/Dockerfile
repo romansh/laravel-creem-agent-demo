@@ -4,7 +4,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git unzip zip libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN install-php-extensions pdo_sqlite mbstring xml curl bcmath pcntl pcov
+RUN install-php-extensions pdo_sqlite mbstring xml curl bcmath pcntl pcov && \
+    rm -f /usr/local/etc/php/conf.d/docker-php-ext-pcov.ini || true
 
 # Enable pcov and configure default directory (will be overridden at runtime)
 RUN { \
