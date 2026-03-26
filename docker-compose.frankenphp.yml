@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
-    working_dir: /app
+    working_dir: /app/creem-simulator
     volumes:
       - .:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
@@ -16,7 +16,7 @@ services:
     build:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
-    working_dir: /app
+    working_dir: /app/creem-simulator
     volumes:
       - .:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
@@ -26,7 +26,7 @@ services:
     build:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
-    working_dir: /app
+    working_dir: /app/creem-simulator
     volumes:
       - .:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
