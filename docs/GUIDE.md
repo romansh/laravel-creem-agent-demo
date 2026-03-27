@@ -87,6 +87,10 @@ The agent parses natural language through a pattern-matching CommandParser that 
 
 This works through both a CLI command (`creem-agent:chat`) and an HTTP endpoint for web widgets.
 
+LLM configuration
+
+The demo app exposes agent-side LLM routing through the `.env` file. In the current `.env.example`, the default configuration is `CREEM_AGENT_LLM_PROVIDER=openai` with `CREEM_AGENT_LLM_MODEL=gpt-4o-mini`, and the Gemini alternative is shown as commented lines right below it. Provider credentials are listed in the same file for OpenAI, Anthropic, Gemini, OpenRouter, and Ollama, plus `OPENAI_URL` and `OLLAMA_BASE_URL` for custom endpoints.
+
 ## Running as a Daemon
 
 For autonomous operation on a VPS, the agent uses Laravel's scheduler:

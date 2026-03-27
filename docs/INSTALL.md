@@ -57,6 +57,38 @@ When to fill tokens and variables: copy `.env.example` to `.env` before the init
 
 If you plan to use multiple Creem stores (multi-store demo), add the secondary store variables to `.env` during that same setup step and then verify that the published `config/creem.php` maps those variables to the `secondary` profile. Look for `CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, and `CREEM_SECONDARY_API_URL` in the project `.env.example`.
 
+### Laravel AI / LLM configuration
+The demo `.env.example` already includes the full Laravel AI block. Configure the agent-facing provider and model in `.env` like this:
+
+```env
+CREEM_AGENT_LLM_ENABLED=true
+CREEM_AGENT_LLM_PROVIDER=openai
+CREEM_AGENT_LLM_MODEL=gpt-4o-mini
+#CREEM_AGENT_LLM_PROVIDER=gemini
+#CREEM_AGENT_LLM_MODEL=gemini-2.5-flash-lite
+CREEM_AGENT_LLM_TIMEOUT=30
+CREEM_AGENT_LLM_FALLBACK_TO_RULES=true
+
+OPENAI_API_KEY=sk-...
+OPENAI_URL=https://api.openai.com/v1
+ANTHROPIC_API_KEY=
+GEMINI_API_KEY=
+OPENROUTER_API_KEY=
+OLLAMA_API_KEY=
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+Switch providers by changing `CREEM_AGENT_LLM_PROVIDER`; switch models by changing `CREEM_AGENT_LLM_MODEL`. The example file keeps Gemini lines commented out so you can quickly switch the agent to `gemini-2.5-flash-lite` without rewriting the section. If you want to customize Laravel AI's provider registry itself, publish `config/ai.php` with `php artisan vendor:publish --tag=ai-config`.
+
+What the demo `.env.example` covers
+- Core Laravel runtime: `APP_*`, locale, mail, queue, cache, session, and `OCTANE_SERVER`.
+- Database: SQLite by default via `DB_CONNECTION=sqlite` and `DB_DATABASE=database/database.sqlite`.
+- Notification channels: Telegram, Slack, and Discord webhook variables.
+- Optional OpenClaw integration: `CREEM_AGENT_OPENCLAW`, `OPENCLAW_ENDPOINT`, `OPENCLAW_WORKSPACE_PATH`, `OPENCLAW_SHARED_SECRET`.
+- LLM routing and provider credentials: the `CREEM_AGENT_LLM_*` block plus API keys for OpenAI, Anthropic, Gemini, OpenRouter, and Ollama.
+- Creem primary and secondary store credentials: `CREEM_API_*`, `CREEM_WEBHOOK_SECRET`, and `CREEM_SECONDARY_*`.
+- Simulator wiring: `CREEM_SIMULATOR_*` variables for internal webhook delivery from the bundled simulator.
+
 Agent app `.env`:
 
 ```env

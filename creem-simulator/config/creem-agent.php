@@ -15,6 +15,14 @@ return [
         ],
     ],
 
+    'llm' => [
+        'enabled' => env('CREEM_AGENT_LLM_ENABLED', true),
+        'provider' => env('CREEM_AGENT_LLM_PROVIDER', 'openai'),
+        'model' => env('CREEM_AGENT_LLM_MODEL'),
+        'timeout' => (int) env('CREEM_AGENT_LLM_TIMEOUT', 30),
+        'fallback_to_rules' => env('CREEM_AGENT_LLM_FALLBACK_TO_RULES', true),
+    ],
+
     // Other agent settings can go here; this file mirrors the published
     // configuration the package will provide. If you run `php artisan
     // vendor:publish`, verify these values in your application's
