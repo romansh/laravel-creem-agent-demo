@@ -18,5 +18,6 @@ return [
         'webhook_url' => env('CREEM_SIMULATOR_AGENT_WEBHOOK_URL'),
         'webhook_secret' => env('CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET'),
         'auto_send_webhooks' => env('CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS', false),
+        'random_seed' => env('CREEM_SIMULATOR_RANDOM_SEED'),
     ],
 ];

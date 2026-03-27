@@ -18,6 +18,32 @@ class SimulatorScenarioService
         private SimulatorWebhookDispatcher $webhooks,
     ) {}
 
+    private bool $deterministic = false;
+
+    private function initDeterministic(): void
+    {
+        if ($this->deterministic) {
+            return;
+        }
+
+        $seed = config('simulator.agent.random_seed');
+        if ($seed !== null && $seed !== '') {
+            // seed mt_rand for deterministic behavior
+            mt_srand((int) $seed);
+            $this->deterministic = true;
+        }
+    }
+
+    private function randInt(int $min, int $max): int
+    {
+        $this->initDeterministic();
+        if ($this->deterministic) {
+            return mt_rand($min, $max);
+        }
+
+        return random_int($min, $max);
+    }
+
     public function seedDemo(string $store, array $options = []): array
     {
         $days = max(1, (int) ($options['days'] ?? 45));
@@ -48,14 +74,14 @@ class SimulatorScenarioService
                     'billing_type' => $index <= (int) ceil($productCount / 2) ? 'subscription' : 'one_time',
                     'status' => 'active',
                     'metadata' => ['demo' => true],
-                    'created_at' => now()->subDays(random_int(10, $days)),
+                    'created_at' => now()->subDays($this->randInt(10, $days)),
                     'updated_at' => now(),
                 ]));
             }
 
             $customers = collect();
             for ($index = 1; $index <= $customerCount; $index++) {
-                $createdAt = now()->subDays(random_int(0, $days))->subMinutes(random_int(0, 1440));
+                $createdAt = now()->subDays($this->randInt(0, $days))->subMinutes($this->randInt(0, 1440));
                 $customers->push(Customer::create([
                     'id' => $this->payloads->makeId('cus'),
                     'store' => $store,
@@ -73,9 +99,17 @@ class SimulatorScenarioService
             $statuses = $this->subscriptionStatuses($subscriptionCount);
             $subscriptions = collect();
 
-            foreach ($customers->shuffle()->take(min($subscriptionCount, $customers->count())) as $index => $customer) {
+            $custPool = $customers->all();
+            if (config('simulator.agent.random_seed')) {
+                shuffle($custPool);
+                $custPool = collect($custPool)->take(min($subscriptionCount, $customers->count()));
+            } else {
+                $custPool = $customers->shuffle()->take(min($subscriptionCount, $customers->count()));
+            }
+
+            foreach ($custPool as $index => $customer) {
                 $status = $statuses[$index] ?? 'active';
-                $createdAt = now()->subDays(random_int(0, $days))->subHours(random_int(0, 48));
+                $createdAt = now()->subDays($this->randInt(0, $days))->subHours($this->randInt(0, 48));
                 $subscriptions->push(Subscription::create([
                     'id' => $this->payloads->makeId('sub'),
                     'store' => $store,
@@ -99,8 +133,8 @@ class SimulatorScenarioService
                 $product = $matchingSubscription
                     ? $products->firstWhere('id', $matchingSubscription->product_id)
                     : $products->random();
-                $occurredAt = now()->subDays(random_int(0, $days))->subMinutes(random_int(0, 1440));
-                $status = random_int(1, 100) <= 88 ? 'succeeded' : 'failed';
+                $occurredAt = now()->subDays($this->randInt(0, $days))->subMinutes($this->randInt(0, 1440));
+                $status = $this->randInt(1, 100) <= 88 ? 'succeeded' : 'failed';
 
                 $transactions->push(Transaction::create([
                     'id' => $this->payloads->makeId('txn'),
@@ -122,7 +156,7 @@ class SimulatorScenarioService
             foreach (range(1, 5) as $index) {
                 $product = $products->random();
                 $customer = $customers->random();
-                $createdAt = now()->subDays(random_int(0, 5))->subMinutes(random_int(0, 240));
+                $createdAt = now()->subDays($this->randInt(0, 5))->subMinutes($this->randInt(0, 240));
 
                 Checkout::create([
                     'id' => $this->payloads->makeId('chk'),
@@ -160,6 +194,7 @@ class SimulatorScenarioService
 
         $events = [];
 
+        $this->initDeterministic();
         $freshCustomers = collect();
         for ($index = 0; $index < $newCustomers; $index++) {
             $customer = Customer::create([

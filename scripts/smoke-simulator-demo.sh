@@ -21,6 +21,9 @@ run_simulator() {
 
 echo "[1/3] Bootstrap simulator container"
 run_simulator '
+  CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET=test-secret \
+  CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET=secondary-secret \
+  CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=1 \
   git config --global --add safe.directory /app &&
   composer install --no-interaction >/tmp/composer.log &&
   test -f .env || cp .env.example .env &&
@@ -30,6 +33,9 @@ run_simulator '
 
 echo "[2/3] Run simulator flow tests"
 run_simulator '
+  CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=1 \
+  CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET=test-secret \
+  CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET=secondary-secret \
   php artisan test tests/Feature/SimulatorFlowTest.php tests/Feature/SimulatorMultiStoreFlowTest.php
 '
 
