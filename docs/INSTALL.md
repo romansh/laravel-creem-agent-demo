@@ -55,6 +55,10 @@ When to fill tokens and variables: copy `.env.example` to `.env` before the init
 
 `test -f .env || cp .env.example .env` in scripts is a fallback only; if you already have custom values, the command should not overwrite them. If you run automation with no `.env`, this fallback ensures the file exists.
 
+Simulator `.env` handling for demo runs
+- For the bundled `creem-simulator`, you do not need to manually create or edit `creem-simulator/.env` during local demo or smoke runs. The provided automation and `scripts/smoke-simulator-demo.sh` will copy `creem-simulator/.env.example` to `creem-simulator/.env` when `.env` is missing and will generate an application key inside the simulator container (`php artisan key:generate --force`).
+- This automatic copy-and-generate behavior is intended only for local/demo/CI use. For production or long-running environments, provide explicit secrets (`APP_KEY`, webhook URL/secret, API keys) via environment variables, Docker secrets, or your orchestration platform. Do not commit real secrets to the repository.
+
 If you plan to use multiple Creem stores (multi-store demo), add the secondary store variables to `.env` during that same setup step and then verify that the published `config/creem.php` maps those variables to the `secondary` profile. Look for `CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, and `CREEM_SECONDARY_API_URL` in the project `.env.example`.
 
 ### Laravel AI / LLM configuration

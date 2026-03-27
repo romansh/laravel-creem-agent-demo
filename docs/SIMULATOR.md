@@ -48,6 +48,10 @@ CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
 CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
 
+Simulator `.env` handling
+- For local demo and CI runs you do not need to manually create or edit `creem-simulator/.env`. The provided scripts and automation copy `creem-simulator/.env.example` to `creem-simulator/.env` when `.env` is missing and run `php artisan key:generate --force` inside the simulator container so the app has a valid `APP_KEY` for demo use.
+- For production or persistent deployments, supply `APP_KEY`, webhook URL/secret, and API keys explicitly via environment variables, Docker/Kubernetes secrets, or your secret manager.
+
 
 If the simulator must call the public app URL instead of the internal Docker hostname, use:
 
