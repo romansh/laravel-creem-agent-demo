@@ -110,13 +110,14 @@ The practical setup is:
 
 1. Run Ubuntu inside VirtualBox
 2. Forward host port `8000` to guest port `8000`
-3. Run Laravel on `0.0.0.0:8000` inside the guest
-4. Use ngrok to expose port `8000` publicly
+3. (Optional) If you want to access the ngrok inspector from the host, forward host port `4040` to guest port `4040`.
+4. Run Laravel in Docker inside the guest
+5. Start the bundled `ngrok` container to expose the app publicly
 5. Point Creem webhooks to `https://YOUR-NGROK-URL/creem/webhook`
 
 This solves the webhook problem without requiring a public VPS during development.
 
-If no VM is needed, ngrok can expose the local machine directly. If `sudo` is unavailable, this still works in current-user standard agent mode.
+If no VM is needed, the same Docker Compose stack can run on the local machine. If `sudo` is unavailable, this still works in current-user standard agent mode as long as Docker is already available to the user.
 
 ## OpenClaw Integration
 

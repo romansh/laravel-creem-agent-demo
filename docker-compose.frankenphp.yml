@@ -9,7 +9,6 @@ services:
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
     ports:
       - "8000:80"
-      - "5173:5173"
     command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80
 
   queue:
@@ -42,8 +41,6 @@ services:
       - http
       - app:80
       - --log=stdout
-    ports:
-      - "4040:4040"
 
   simulator:
     build:
@@ -52,6 +49,14 @@ services:
     working_dir: /app
     volumes:
       - ./creem-simulator:/app
-    ports:
-      - "18080:80"
+    expose:
+      - "80"
+    environment:
+      CREEM_SIMULATOR_DEFAULT_API_KEY: ${CREEM_SIMULATOR_DEFAULT_API_KEY}
+      CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET: ${CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET}
+      CREEM_SIMULATOR_SECONDARY_API_KEY: ${CREEM_SIMULATOR_SECONDARY_API_KEY}
+      CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET: ${CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET}
+      CREEM_SIMULATOR_AGENT_WEBHOOK_URL: ${CREEM_SIMULATOR_AGENT_WEBHOOK_URL}
+      CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET: ${CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET}
+      CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS: ${CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS}
     command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80

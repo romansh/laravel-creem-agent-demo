@@ -3,3 +3,4 @@
 vendor/
 creem-simulator/.editorconfig
 .env
+database/database.sqlite

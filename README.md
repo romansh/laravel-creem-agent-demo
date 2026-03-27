@@ -27,12 +27,16 @@ printf "\nOCTANE_SERVER=frankenphp\n" >> .env
 This ensures `php artisan octane:install --server=frankenphp` and runtime expectations match the demo containers.
 
 ## Quick start (Docker)
+Before you start: copy `.env.example` to `.env` and do a one-time setup of the values you plan to use, including API keys, Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN`. The `ngrok` container itself can be started later when public webhook delivery is needed, but its token should live in the same `.env` alongside the rest of the configuration.
+
+If you run multiple Creem stores (multi-store demo), set the secondary store env vars (`CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, `CREEM_SECONDARY_API_URL`) in that same `.env` setup step, then verify that the published `config/creem.php` maps them to the `secondary` profile.
+
 If you are starting from the point where `ngrok` is already up, continue with these commands:
 
 ```bash
 cd laravel-creem-agent-demo
 docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
-# Примечание: добавлена команда git config, чтобы избежать ошибок Git safe.directory при запуске Composer в контейнере
+	# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
 	docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
 	git config --global --add safe.directory /app && composer install --no-interaction &&
 	test -f .env || cp .env.example .env &&
@@ -65,16 +69,8 @@ After that, read the current public tunnel URL from the `ngrok` inspector and us
 When you need a public HTTPS URL for real Creem or Telegram webhooks, run the bundled `ngrok` service instead of installing `ngrok` on the host:
 
 ```bash
-export NGROK_AUTHTOKEN=YOUR_NGROK_AUTHTOKEN
-docker compose -f docker-compose.frankenphp.yml up -d ngrok
-curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url'
-```
-
-If you prefer to keep the token in your application `.env` file instead of exporting it every time, add the line `NGROK_AUTHTOKEN=your_token` to your `.env` (do not commit this file). Then start the tunnel with Docker Compose loading that file:
-
-```bash
 docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
-curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url'
+# Read the public URL from the ngrok container logs; the inspector is not published by default.
 ```
 
 Alternatively, load `.env` into your shell for the current session (bash/zsh):
@@ -149,8 +145,14 @@ If you want deterministic local testing without waiting for real payments or pub
 - Build and start containers: `docker compose -f docker-compose.frankenphp.yml up --build`
 - Stop containers: `docker compose -f docker-compose.frankenphp.yml down`
 - Follow logs: `docker compose -f docker-compose.frankenphp.yml logs -f`
-- Start bundled ngrok: `export NGROK_AUTHTOKEN=... && docker compose -f docker-compose.frankenphp.yml up -d ngrok`
-- Read current public URL: `curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url'`
+- Start bundled ngrok: `docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok`
+<!-- ngrok web UI is not published by default in this configuration -->
+
+The compose file uses normal Docker `ports:` publishing. Start the stack with:
+
+```bash
+docker compose -f docker-compose.frankenphp.yml up -d --build
+```
 
 ## Troubleshooting & tips
  - If the agent is unresponsive, check container logs and environment variable configuration.

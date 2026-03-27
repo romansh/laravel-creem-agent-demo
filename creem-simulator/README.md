@@ -28,7 +28,7 @@ cp .env.example .env
 touch database/database.sqlite
 php artisan key:generate
 php artisan migrate --seed
-php artisan serve --host=0.0.0.0 --port=18080
+php artisan serve --host=0.0.0.0 --port=80  # simulator runs on container port 80; publish to host only if needed
 ```
 
 Point your agent app to the simulator:
@@ -37,8 +37,8 @@ Point your agent app to the simulator:
 CREEM_TEST_MODE=true
 CREEM_API_KEY=creem_test_demo_default
 CREEM_WEBHOOK_SECRET=whsec_demo_default
-CREEM_TEST_API_URL=http://127.0.0.1:18080/api/v1
-CREEM_API_URL=http://127.0.0.1:18080/api/v1
+CREEM_TEST_API_URL=http://simulator:80/api/v1  # internal Docker network URL
+CREEM_API_URL=http://simulator:80/api/v1
 ```
 
 ## Main commands

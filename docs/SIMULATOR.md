@@ -39,14 +39,15 @@ The simulator persists all of this in SQLite, so you can:
 
 ## Start simulator in Docker
 
-Before starting the simulator, fill `creem-simulator/.env` if you want automatic webhook delivery.
-Do this after `ngrok` is running if you need a public URL, or use the internal Docker URL if the agent app is on the same network.
+Before starting the simulator, configure `CREEM_SIMULATOR_*` values in the root `.env` (preferred) for a unified environment. You can also set them in `creem-simulator/.env` as simulator-local overrides.
+If you use `ngrok`, set `CREEM_SIMULATOR_AGENT_WEBHOOK_URL` after ngrok is running; otherwise use the internal Docker URL when agent and simulator are on the same network.
 
 ```env
 CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
 CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
 CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
+
 
 If the simulator must call the public app URL instead of the internal Docker hostname, use:
 
@@ -59,7 +60,7 @@ If `ngrok` is already running and you want the full demo stack from that point, 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
- # Примечание: добавлена команда git config, чтобы избежать ошибок Git safe.directory при запуске Composer в контейнере
+ # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
  docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&
@@ -68,7 +69,7 @@ docker compose -f docker-compose.frankenphp.yml build app queue scheduler simula
   php artisan migrate --seed &&
   php artisan octane:install --server=frankenphp --no-interaction
 '
-# Примечание: добавлена команда git config, чтобы избежать ошибок Git safe.directory при запуске Composer в контейнере
+# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
 docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&

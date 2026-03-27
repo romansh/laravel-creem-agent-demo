@@ -51,8 +51,11 @@ Below are concise step sequences for each primary flow.
 
 ### Flow A — Docker on the host (fastest)
 
-When to fill tokens and variables: after `ngrok` is up, but before the init/install commands below.
-That way you already know `YOUR-NGROK-URL` and can immediately place the correct callback URLs into `.env`.
+When to fill tokens and variables: copy `.env.example` to `.env` before the init/install commands below and do a one-time setup of the values you plan to use. Put real tokens, Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same `.env` so the whole stack uses one consistent configuration file.
+
+`test -f .env || cp .env.example .env` in scripts is a fallback only; if you already have custom values, the command should not overwrite them. If you run automation with no `.env`, this fallback ensures the file exists.
+
+If you plan to use multiple Creem stores (multi-store demo), add the secondary store variables to `.env` during that same setup step and then verify that the published `config/creem.php` maps those variables to the `secondary` profile. Look for `CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, and `CREEM_SECONDARY_API_URL` in the project `.env.example`.
 
 Agent app `.env`:
 
@@ -68,7 +71,7 @@ CREEM_AGENT_TELEGRAM_CHAT_ID=...
 OCTANE_SERVER=frankenphp
 ```
 
-If you use the simulator, set these in `creem-simulator/.env` before starting `simulator`:
+If you use the simulator, set these in `./.env` (preferred for unified configuration). You can also set them in `creem-simulator/.env` as simulator-local overrides.
 
 ```env
 CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
@@ -76,12 +79,15 @@ CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
 CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
 
+Optionally, keep the values in the root `.env` and let docker-compose inject them into the simulator container via `docker-compose.frankenphp.yml`.
+
+
 From the host shell:
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
-# Примечание: добавлена команда git config, чтобы избежать ошибок Git safe.directory при запуске Composer в контейнере
+# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
 docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
     git config --global --add safe.directory /app && composer install --no-interaction &&
     test -f .env || cp .env.example .env &&
@@ -90,7 +96,7 @@ docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
     php artisan migrate --seed &&
     php artisan octane:install --server=frankenphp --no-interaction
 '
-# Примечание: добавлена команда git config, чтобы избежать ошибок Git safe.directory при запуске Composer в контейнере
+# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
 docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
     git config --global --add safe.directory /app && composer install --no-interaction &&
     test -f .env || cp .env.example .env &&
@@ -157,7 +163,7 @@ The machine or container user running Composer must have read access to these re
 
 ### Flow B — Docker inside VirtualBox (recommended for isolated VM)
 
-In the VM the timing is the same: first raise `ngrok`, then fill `.env`, then run the initialization commands.
+In the VM the timing is the same as on the host: copy `.env.example` to `.env`, fill it once with the values you need, then run initialization. The `ngrok` service can start later when you need a public HTTPS callback URL, but its token should already be present in the same `.env` file.
 
 Summary: provision a VM, mount the host repo into the guest (for example at `/hove/www`), then run the Docker-based setup inside the VM. This keeps host clean and simulates a small VPS.
 
@@ -419,23 +425,15 @@ If Creem needs to call your local app or VirtualBox guest, expose the Laravel ap
 Typical flow:
 
 ```bash
-# Provide the auth token for docker compose
-export NGROK_AUTHTOKEN=YOUR_NGROK_TOKEN
-
-# Tunnel the app container
-docker compose -f docker-compose.frankenphp.yml up -d ngrok
-
-# Read the public HTTPS URL
-curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url'
-
-## Option B — keep token in .env and load it (safer for long-running sessions)
-## Add `NGROK_AUTHTOKEN=your_token` to your `.env` (do not commit). Then either:
+# Start the ngrok container using the token already stored in `.env`
 docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
 
-# or load `.env` into the current shell session before starting compose:
+# Read the public HTTPS URL from the ngrok container logs or API; the local inspector is not published by default.
+
+# Or load `.env` into the current shell session before starting compose:
 set -o allexport; source .env; set +o allexport
 docker compose -f docker-compose.frankenphp.yml up -d ngrok
-curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url'
+# The public URL can be read from the ngrok container logs; the inspector is not published by default.
 ```
 
 Take the generated HTTPS URL and configure Creem webhooks to:
@@ -448,16 +446,16 @@ Recommended setup combinations:
 
 ### VirtualBox guest runs the full Docker stack
 
-1. In VirtualBox, forward host `8000` to guest `8000` and host `4040` to guest `4040`
+1. In VirtualBox, forward host `8000` to guest `8000`. Forwarding host `4040` is optional (ngrok inspector is not published by default).
 2. Inside the guest, run `docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler ngrok`
-3. Read the HTTPS URL from `http://127.0.0.1:4040/api/tunnels`
+3. Read the HTTPS URL from the ngrok container output or logs (inspector not published by default)
 4. Put that HTTPS URL into Creem webhook settings
 
 ### Local machine runs the full Docker stack
 
-1. Export `NGROK_AUTHTOKEN` in the same shell that runs Docker Compose
-2. Run `docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler ngrok`
-3. Read the HTTPS URL from `http://127.0.0.1:4040/api/tunnels`
+1. Put `NGROK_AUTHTOKEN` in `.env`
+2. Run `docker compose --env-file .env -f docker-compose.frankenphp.yml up -d app queue scheduler ngrok`
+3. Read the HTTPS URL from the ngrok container output or logs (inspector not published by default)
 4. Put that HTTPS URL into Creem webhook settings
 
 Verification:
@@ -535,6 +533,8 @@ Add the secondary profile to `config/creem.php`:
         'webhook_secret' => env('CREEM_SECONDARY_WEBHOOK_SECRET'),
     ],
 ],
+
+After running `php artisan vendor:publish`, verify that `config/creem.php` in your application contains the `secondary` profile and that it references the `CREEM_SECONDARY_*` environment variables. If not, copy the snippet above into `config/creem.php`.
 ```
 
 ## Troubleshooting
@@ -562,10 +562,9 @@ Add the secondary profile to `config/creem.php`:
 
 ### Webhooks are not arriving
 - Confirm the webhook URL in Creem is `https://YOUR-NGROK-URL/creem/webhook`
-- If using VirtualBox, confirm host `8000` is forwarded to guest `8000`
-- If using VirtualBox, confirm host `4040` is forwarded to guest `4040`
+- If using VirtualBox, confirm host `8000` is forwarded to guest `8000` (forwarding `4040` is optional for the ngrok inspector).
 - Confirm the `ngrok` container is running: `docker compose -f docker-compose.frankenphp.yml ps ngrok`
-- Check ngrok inspector on `http://127.0.0.1:4040`
+- Check the ngrok container logs or API for the public URL (inspector is not published by default).
 - Verify `CREEM_WEBHOOK_SECRET` matches the value configured in Creem
 
 ### No sudo on the host

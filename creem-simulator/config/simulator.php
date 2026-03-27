@@ -5,12 +5,12 @@ return [
         'default' => [
             'api_key' => env('CREEM_SIMULATOR_DEFAULT_API_KEY', 'creem_test_demo_default'),
             'webhook_secret' => env('CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET', 'whsec_demo_default'),
-            'portal_base_url' => env('CREEM_SIMULATOR_PORTAL_BASE_URL', 'http://127.0.0.1:18080/portal'),
+                'portal_base_url' => env('CREEM_SIMULATOR_PORTAL_BASE_URL', 'http://simulator:80/portal'),
         ],
         'secondary' => [
             'api_key' => env('CREEM_SIMULATOR_SECONDARY_API_KEY', 'creem_test_demo_secondary'),
             'webhook_secret' => env('CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET', 'whsec_demo_secondary'),
-            'portal_base_url' => env('CREEM_SIMULATOR_PORTAL_BASE_URL', 'http://127.0.0.1:18080/portal'),
+            'portal_base_url' => env('CREEM_SIMULATOR_PORTAL_BASE_URL', 'http://simulator:80/portal'),
         ],
     ],
 
