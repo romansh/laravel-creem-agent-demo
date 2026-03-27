@@ -61,10 +61,37 @@ if [ -n "$NETWORK_NAME" ]; then
     sleep 1
   done
 
-  # Send webhook to the ephemeral receiver and assert outcome
-  run_simulator '
-    CREEM_SIMULATOR_AGENT_WEBHOOK_URL="http://webhook-receiver/post" CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET="test-secret" php artisan simulator:send-webhook payment.failed --store=default
-  '
+  # Send multiple webhooks to the ephemeral receiver and collect results
+  WEBHOOK_COUNT=${WEBHOOK_COUNT:-3}
+  results_dir="/tmp/smoke-webhooks-$$"
+  mkdir -p "$results_dir"
+  success_count=0
+  signature_count=0
+
+  for i in $(seq 1 "$WEBHOOK_COUNT"); do
+    echo "Sending webhook #$i"
+    out=$(run_simulator '
+      CREEM_SIMULATOR_AGENT_WEBHOOK_URL="http://webhook-receiver/post" CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET="test-secret" php artisan simulator:send-webhook payment.failed --store=default
+    ')
+    echo "$out" > "$results_dir/response-$i.json"
+
+    if echo "$out" | grep -q '"ok": true'; then
+      success_count=$((success_count+1))
+    fi
+    if echo "$out" | grep -q 'Creem-Signature'; then
+      signature_count=$((signature_count+1))
+    fi
+  done
+
+  # Summary table
+  total=$WEBHOOK_COUNT
+  failed=$((total - success_count))
+  printf "\nWebhook summary:\n"
+  printf "%-10s | %-8s | %-9s | %-10s\n" "Total" "Success" "Failures" "Signatures"
+  printf "%-10s-+-%-8s-+-%-9s-+-%-10s\n" "----------" "--------" "---------" "----------"
+  printf "%-10s | %-8s | %-9s | %-10s\n" "$total" "$success_count" "$failed" "$signature_count"
+
+  echo "\nRaw responses saved to: $results_dir"
 
   docker rm -f webhook-receiver >/dev/null || true
 else
