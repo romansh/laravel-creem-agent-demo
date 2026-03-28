@@ -42,10 +42,17 @@ This file gives a single, recommended path first (fastest to a working demo), wi
 
 ## Recommended primary flows
 
-Two primary flows are supported. Choose one and follow its short path — alternatives are provided but visually de-emphasized.
+Read the documentation as two approaches, not as one continuous setup:
 
-- Flow A — Docker on the host (fastest to a working instance).
-- Flow B — Docker inside a VirtualBox VM (recommended for an isolated, demo-like environment). Flow B has two main sub-variants: with OpenClaw (privileged install inside the VM) and without OpenClaw (pure agent).
+- Approach 1 — simulator-first. This is the supported path for the current repository and should be completed first.
+- Approach 2 — real Creem. This is the next-stage path for public webhooks, live Creem data, and optional OpenClaw on top of a dedicated Laravel host.
+
+Operationally, you can run either approach on:
+
+- Flow A — Docker on the host.
+- Flow B — Docker inside a VirtualBox VM.
+
+OpenClaw is an overlay on either path, not a replacement for the simulator-first validation.
 
 Below are concise step sequences for each primary flow.
 
@@ -132,34 +139,35 @@ docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
     php artisan migrate --seed &&
     php artisan octane:install --server=frankenphp --no-interaction
 '
-# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
-docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-    git config --global --add safe.directory /app && composer install --no-interaction &&
-    test -f .env || cp .env.example .env &&
-    mkdir -p database && touch database/database.sqlite &&
-    php artisan key:generate &&
-    php artisan vendor:publish --tag=creem-config &&
-    php artisan vendor:publish --tag=creem-cli-config &&
-    php artisan vendor:publish --tag=creem-agent-config &&
-    php artisan vendor:publish --tag=creem-agent-migrations &&
-    php artisan migrate &&
-    php artisan octane:install --server=frankenphp --no-interaction
-'
 docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
 ```
 
-Start services and run install:
+Do not initialize `app` with `run --rm app ...` in the current repository state. That service points at `creem-simulator`, not at a dedicated agent-hosting Laravel app.
+
+Start services and run the supported verification flow:
+
+Current topology note:
+
+- The checked-in `docker-compose.frankenphp.yml` does not yet provide a dedicated Laravel agent app container.
+- `app`, `queue`, and `scheduler` currently point at `creem-simulator`, so `docker compose exec app php artisan creem-agent:*` is not a valid runtime path for this repository today.
+- Use the smoke runner for simulator/webhook verification and for standalone Telegram outbound-send smoke. Keep the package tests in `../laravel-creem-agent` as package-level Telegram send/receive verification.
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
-curl -s http://127.0.0.1:8000/creem-agent/status | jq
+cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/smoke-simulator-demo.sh
+
+cd /home/roman/php/run/laravel-creem-agent
+php vendor/bin/pest \
+    tests/Feature/TelegramWebhookControllerTest.php \
+    tests/Feature/TelegramWebhookControllerMoreTest.php \
+    tests/Feature/TelegramWebhookControllerFailureTest.php
 ```
 
-Optional: test webhooks
+Optional: re-run the integrated webhook smoke
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem:test-webhook checkout.completed
+cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/smoke-simulator-demo.sh
 ```
 
 Flow A is the quickest path for development and CI.
@@ -225,27 +233,19 @@ docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
     php artisan migrate --seed &&
     php artisan octane:install --server=frankenphp --no-interaction
 '
-docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-    git config --global --add safe.directory /app && composer install --no-interaction &&
-    test -f .env || cp .env.example .env &&
-    mkdir -p database && touch database/database.sqlite &&
-    php artisan key:generate &&
-    php artisan vendor:publish --tag=creem-config &&
-    php artisan vendor:publish --tag=creem-cli-config &&
-    php artisan vendor:publish --tag=creem-agent-config &&
-    php artisan vendor:publish --tag=creem-agent-migrations &&
-    php artisan migrate &&
-    php artisan octane:install --server=frankenphp --no-interaction
-'
 docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
 ```
 
-Start services and run install inside the VM:
+Then run the supported checks inside the VM:
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
-curl -s http://127.0.0.1:8000/creem-agent/status | jq
+bash scripts/smoke-simulator-demo.sh
+
+cd /home/www/laravel-creem-agent
+php vendor/bin/pest \
+    tests/Feature/TelegramWebhookControllerTest.php \
+    tests/Feature/TelegramWebhookControllerMoreTest.php \
+    tests/Feature/TelegramWebhookControllerFailureTest.php
 ```
 
 Flow B has two sub-variants:
@@ -260,7 +260,7 @@ After OpenClaw is provisioned inside the VM, configure `CREEM_AGENT_TELEGRAM_MOD
 
 B2 — Without OpenClaw (pure agent): skip the privileged installer and run only the Docker stack inside the guest (commands above). This is the simplest VM-based path when `sudo` is unavailable.
 
-In B2, keep Telegram on Laravel with `CREEM_AGENT_TELEGRAM_MODE=laravel` and register the bot webhook to `https://YOUR-NGROK-URL/creem-agent/telegram/webhook`, where `YOUR-NGROK-URL` comes from the bundled Docker `ngrok` service.
+In B2, keep Telegram on Laravel with `CREEM_AGENT_TELEGRAM_MODE=laravel`, but note that Telegram is currently verified through the standalone smoke step inside `bash scripts/smoke-simulator-demo.sh` plus the package tests in `../laravel-creem-agent`, rather than through a dedicated checked-in HTTP app container.
 
 -- End of recommended flows --
 
@@ -270,21 +270,10 @@ If Docker isn't available on your host, use the current-user path below. It's sl
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan vendor:publish --tag=creem-config
-php artisan vendor:publish --tag=creem-cli-config
-php artisan vendor:publish --tag=creem-agent-config
-php artisan vendor:publish --tag=creem-agent-migrations
-php artisan migrate
-php artisan creem-agent:install
-php artisan serve --host=0.0.0.0 --port=8000
-php artisan queue:work --queue=creem-agent
-php artisan schedule:work
+bash scripts/smoke-simulator-demo.sh
 ```
 
-Notes: this mode is suitable for development, CI, or restricted hosts. It assumes PHP, Composer and required PHP extensions are installed.
+Notes: the demo repository root is not a standalone Laravel app with `artisan`, so the current no-Docker fallback is the smoke runner plus direct package verification in `../laravel-creem-agent`, not `php artisan creem-agent:*` from the demo root.
 
 ## Optional: VirtualBox (shared folder + Guest Additions)
 
@@ -309,9 +298,10 @@ After that, create per-package folders under `/hove/www` (e.g. `laravel-creem`, 
 
 ## Quick verification checklist
 
-- `curl -s http://127.0.0.1:8000/creem-agent/status | jq` → status JSON
-- `docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install` → wizard
-- `docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat` → heartbeat output
+- `bash scripts/smoke-simulator-demo.sh` → simulator + webhook smoke
+- `bash scripts/smoke-simulator-demo.sh` → simulator + webhook smoke + standalone Telegram outbound-send smoke
+- `cd ../laravel-creem-agent && php vendor/bin/pest tests/Feature/TelegramWebhookControllerTest.php tests/Feature/TelegramWebhookControllerMoreTest.php tests/Feature/TelegramWebhookControllerFailureTest.php` → package-level Telegram send/receive coverage
+- `docker compose -f docker-compose.frankenphp.yml ps -a` → confirm simulator stack state
 
 ## Appendix: VirtualBox Guest Additions & Shared Folder (detailed)
 
@@ -389,11 +379,11 @@ Notes:
 - If permissions look incorrect, verify `uid`/`gid` options in the mount command or `/etc/fstab`.
 
 ```bash
-curl -s http://127.0.0.1:8000/creem-agent/status | jq
-curl -s -X POST http://127.0.0.1:8000/creem-agent/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"how many active subscriptions?"}' | jq
-php artisan creem-agent:heartbeat --all-stores
+cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/smoke-simulator-demo.sh
+
+cd /home/roman/php/run/laravel-creem-agent
+php vendor/bin/pest tests/Feature/TelegramWebhookControllerTest.php tests/Feature/TelegramWebhookControllerMoreTest.php tests/Feature/TelegramWebhookControllerFailureTest.php
 ```
 
 ### 8.6 If sudo is unavailable
@@ -404,19 +394,7 @@ Preferred current-user path if Docker is already available to your user:
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
-docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-  composer install &&
-  test -f .env || cp .env.example .env &&
-  mkdir -p database && touch database/database.sqlite &&
-  php artisan key:generate &&
-  php artisan vendor:publish --tag=creem-config --force &&
-  php artisan vendor:publish --tag=creem-cli-config --force &&
-  php artisan vendor:publish --tag=creem-agent-config --force &&
-  php artisan vendor:publish --tag=creem-agent-migrations --force &&
-  php artisan migrate &&
-  (php artisan octane:install --server=frankenphp --no-interaction || true)
-'
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler
+bash scripts/smoke-simulator-demo.sh
 ```
 
 Fallback current-user flow if Docker is unavailable:
@@ -505,13 +483,15 @@ Note: `GET /creem/webhook` may return `405 Method Not Allowed`, which is fine. T
 
 ## Step 10: Scheduling (Production)
 
+For demo and simulator runs, use `everyMinute()` so you do not wait 4 hours between heartbeats. This cadence is not controlled by `.env` in the current docs; it is controlled by the Laravel scheduler definition.
+
 Add to `routes/console.php`:
 
 ```php
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('creem-agent:heartbeat --all-stores')
-    ->everyFourHours()
+    ->everyMinute()
     ->runInBackground()
     ->withoutOverlapping();
 ```
@@ -536,6 +516,8 @@ php artisan creem-agent:chat "help"
 ```
 
 ## Step 12: Multi-Store Setup (Optional)
+
+`heartbeat_frequency` in `config/creem-agent.php` is store metadata in hours. It is not the switch that makes the demo run every minute; for demo cadence, change the scheduler definition above.
 
 Edit `config/creem-agent.php`:
 
@@ -591,9 +573,8 @@ After running `php artisan vendor:publish`, verify that `config/creem.php` in yo
 - Agent will auto-fallback to SDK — no action needed
 
 ### OpenClaw Not Reaching the Agent
-- Verify the Laravel app is reachable at `http://127.0.0.1:8000`
-- Check `GET /creem-agent/status` manually with `curl`
-- Check `POST /creem-agent/chat` manually with `curl`
+- For the current repository, first confirm the simulator-first checks are green: `bash scripts/smoke-simulator-demo.sh` and the Telegram package tests in `../laravel-creem-agent`
+- Only use direct checks against `http://127.0.0.1:8000`, `GET /creem-agent/status`, and `POST /creem-agent/chat` when you are already on the real-Creem approach with a dedicated Laravel agent host
 - If OpenClaw runs on another host, expose the app via Nginx/Caddy and update `APP_URL`
 
 ### Webhooks are not arriving

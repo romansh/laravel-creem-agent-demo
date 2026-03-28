@@ -29,6 +29,15 @@ This ensures `php artisan octane:install --server=frankenphp` and runtime expect
 ## Quick start (Docker)
 Before you start: copy `.env.example` to `.env` and do a one-time setup of the values you plan to use, including API keys, Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN`. The `ngrok` container itself can be started later when public webhook delivery is needed, but its token should live in the same `.env` alongside the rest of the configuration.
 
+Recommended demo order:
+
+1. run `bash scripts/smoke-simulator-demo.sh` to create the baseline heartbeat and verify simulator webhooks plus outbound Telegram smoke
+2. add new simulator sales and failures with `simulator:advance` and `simulator:send-webhook payment.failed`
+3. run `bash scripts/smoke-simulator-demo.sh` again so heartbeat shows the delta
+4. if you need a real Telegram conversation against simulator-backed data, connect a dedicated Laravel host app to `http://simulator/api/v1` and register its Telegram webhook
+
+For demo cadence, do not look for a dedicated `.env` switch. Use `everyMinute()` in the Laravel scheduler definition; the Docker `scheduler` loop already runs `schedule:run` every 60 seconds.
+
 If you run multiple Creem stores (multi-store demo), set the secondary store env vars (`CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, `CREEM_SECONDARY_API_URL`) in that same `.env` setup step, then verify that the published `config/creem.php` maps them to the `secondary` profile.
 
 If you are starting from the point where `ngrok` is already up, continue with these commands:
@@ -138,6 +147,19 @@ Review the scenario documents:
 Use these files as input for manual testing or when wiring the demo into a test environment.
 
 If you want deterministic local testing without waiting for real payments or public webhooks, start with `creem-simulator/` and `docs/SIMULATOR.md`.
+
+If you want simulator-backed Telegram interaction, use a dedicated Laravel host app with:
+
+```php
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('creem-agent:heartbeat --all-stores')
+	->everyMinute()
+	->runInBackground()
+	->withoutOverlapping();
+```
+
+That interactive Telegram stage is separate from the checked-in demo compose topology.
 
 
 

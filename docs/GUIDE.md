@@ -6,6 +6,13 @@ Managing a SaaS business means tracking payments, subscriptions, and customer he
 
 This guide walks through building exactly that: an autonomous AI agent for Creem.io that implements the official HEARTBEAT.md specification, supports multiple stores, and runs proactively in the background.
 
+For this repository, the practical reading order is:
+
+1. Start with the simulator-first approach to validate heartbeat logic, webhook delivery, and Telegram behavior deterministically.
+2. Then move to the real Creem approach for live keys, ngrok callbacks, and optional OpenClaw attachment.
+
+That split matters because the checked-in demo compose topology is still simulator-centered.
+
 ## The Architecture
 
 The system consists of three Laravel packages working together:
@@ -97,10 +104,12 @@ For autonomous operation on a VPS, the agent uses Laravel's scheduler:
 
 ```php
 Schedule::command('creem-agent:heartbeat --all-stores')
-    ->everyFourHours()
+    ->everyMinute()
     ->runInBackground()
     ->withoutOverlapping();
 ```
+
+For demos this is the recommended cadence so you do not wait 4 hours. It is not driven by `.env`; it is driven by the scheduler definition in the Laravel host app.
 
 Combined with Laravel Octane (FrankenPHP), the application stays warm in memory. Queue workers process webhook-triggered jobs, and Supervisor ensures everything restarts on failure.
 
@@ -121,6 +130,13 @@ The practical setup is:
 
 This solves the webhook problem without requiring a public VPS during development.
 
+Treat it as the bridge between the two approaches:
+
+- simulator-first for supported local verification
+- real Creem for public callback verification once the dedicated agent host exists
+
+Current repository caveat: the compose file in this repository does not yet include a separate agent-hosting Laravel app container. The checked-in `app` service points at `creem-simulator`, so direct HTTP examples such as `/creem-agent/status` and `/creem-agent/chat` describe the intended target architecture, not the currently runnable compose topology. The supported verification flow today is `bash scripts/smoke-simulator-demo.sh` plus the Telegram package tests in `../laravel-creem-agent`, with the smoke runner now including a standalone outbound-send check for Telegram.
+
 If no VM is needed, the same Docker Compose stack can run on the local machine. If `sudo` is unavailable, this still works in current-user standard agent mode as long as Docker is already available to the user.
 
 ## OpenClaw Integration
@@ -140,6 +156,8 @@ Instead of MCP, the integration is intentionally simple:
 5. OpenClaw can keep its own orchestration note in `~/.openclaw/workspace/HEARTBEAT.md`
 
 This gives us a stable contract even if OpenClaw's own installation method changes.
+
+In the current repository, treat this as the target contract for Approach 2. Approach 1 remains simulator smoke plus package-level Telegram verification.
 
 ### What to install
 
@@ -180,14 +198,17 @@ In that mode Telegram should point to `/creem-agent/telegram/webhook`, not to Op
 ### Minimal verification
 
 ```bash
-curl -s http://127.0.0.1:8000/creem-agent/status | jq
-curl -s -X POST http://127.0.0.1:8000/creem-agent/chat \
-    -H 'Content-Type: application/json' \
-    -d '{"message":"status"}' | jq
-php artisan creem-agent:heartbeat --all-stores
+cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/smoke-simulator-demo.sh
+
+cd /home/roman/php/run/laravel-creem-agent
+php vendor/bin/pest \
+    tests/Feature/TelegramWebhookControllerTest.php \
+    tests/Feature/TelegramWebhookControllerMoreTest.php \
+    tests/Feature/TelegramWebhookControllerFailureTest.php
 ```
 
-If those three checks pass, OpenClaw can be attached without introducing another protocol layer.
+If those checks pass, simulator delivery, Telegram outbound-send smoke, and package-level Telegram send/receive logic are all covered. A future dedicated `agent-app` service can then add HTTP E2E on top.
 
 ## Edge Cases That Matter
 

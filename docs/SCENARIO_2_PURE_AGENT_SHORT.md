@@ -1,5 +1,11 @@
 # Scenario 2 Short: Pure Agent
 
+Use this as the default execution order:
+
+1. simulator-first verification
+2. optional public webhook exposure with ngrok
+3. real Creem only after the simulator-first path is green
+
 ## Tokens first
 
 - Creem API key: Creem Dashboard -> API Keys
@@ -9,6 +15,8 @@
 - ngrok authtoken: ngrok dashboard
 
 ## Preferred runtime: Docker + FrankenPHP
+
+Important: the current compose file does not yet include a separate HTTP agent app service. Use the smoke runner and package tests below as the authoritative verification path for this repo alone. If you want to send real Telegram messages and receive simulator-backed answers, add a separate Laravel host app connected to `http://simulator/api/v1`.
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
@@ -22,20 +30,13 @@ cd /home/roman/php/run/laravel-creem-agent-demo
   php artisan migrate --seed &&
   php artisan octane:install --server=frankenphp --no-interaction
 '
-# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
-docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-  git config --global --add safe.directory /app && composer install --no-interaction &&
-  test -f .env || cp .env.example .env &&
-  mkdir -p database && touch database/database.sqlite &&
-  php artisan key:generate &&
-  php artisan vendor:publish --tag=creem-config &&
-  php artisan vendor:publish --tag=creem-cli-config &&
-  php artisan vendor:publish --tag=creem-agent-config &&
-  php artisan vendor:publish --tag=creem-agent-migrations &&
-  php artisan migrate &&
-  php artisan octane:install --server=frankenphp --no-interaction
-'
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
+bash scripts/smoke-simulator-demo.sh
+
+cd /home/roman/php/run/laravel-creem-agent
+php vendor/bin/pest \
+  tests/Feature/TelegramWebhookControllerTest.php \
+  tests/Feature/TelegramWebhookControllerMoreTest.php \
+  tests/Feature/TelegramWebhookControllerFailureTest.php
 ```
 
 Copy `.env.example` to `.env` before initialization and do a one-time setup of the values you plan to use. Put Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file, even if you will start the `ngrok` container only later when public webhook delivery is needed.
@@ -93,7 +94,7 @@ The same base URL is used for the Telegram webhook:
 After you get `YOUR-NGROK-URL`, use it for every public callback:
 
 - Creem webhook: `https://YOUR-NGROK-URL/creem/webhook`
-- Telegram webhook: `https://YOUR-NGROK-URL/creem-agent/telegram/webhook`
+- Telegram webhook: part of the intended target architecture; today Telegram behavior is verified by package tests in `../laravel-creem-agent`
 - Simulator callback, if you want simulator to call the public app URL
 
 The same `.env` file can be loaded into your shell with `set -o allexport; source .env; set +o allexport` before running compose if you prefer not to pass `--env-file` explicitly.
@@ -105,28 +106,56 @@ curl -s -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
   -d "url=https://YOUR-NGROK-URL/creem-agent/telegram/webhook"
 ```
 
-## Verify
+## Verify simulator-first approach
 
 ```bash
-curl -s http://127.0.0.1:8000/creem-agent/status | jq
-curl -s -X POST http://127.0.0.1:8000/creem-agent/chat -H 'Content-Type: application/json' -d '{"message":"status"}' | jq
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem:test-webhook payment.failed
+cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/smoke-simulator-demo.sh
+
+cd /home/roman/php/run/laravel-creem-agent
+php vendor/bin/pest tests/Feature/TelegramWebhookControllerTest.php tests/Feature/TelegramWebhookControllerMoreTest.php tests/Feature/TelegramWebhookControllerFailureTest.php
 ```
+
+## Optional: interactive Telegram on top of simulator
+
+For a real Telegram conversation against simulator-backed data, use a dedicated Laravel host app with:
+
+```php
+Schedule::command('creem-agent:heartbeat --all-stores')
+    ->everyMinute()
+    ->runInBackground()
+    ->withoutOverlapping();
+```
+
+This cadence is configured in scheduler code, not in `.env`.
+
+Then point that agent host to `http://simulator/api/v1`, register the Telegram webhook, and use messages such as:
+
+```text
+status
+recent transactions
+any payment issues?
+run heartbeat
+```
+
+Before asking those questions, create fresh simulator changes:
+
+```bash
+docker compose -f docker-compose.frankenphp.yml exec simulator \
+  php artisan simulator:advance --sales=3 --new-customers=2 --past-due=2 --cancellations=1 --send-webhooks
+docker compose -f docker-compose.frankenphp.yml exec simulator \
+  php artisan simulator:send-webhook payment.failed
+```
+
+## Move to real Creem after simulator-first passes
+
+Once the smoke runner and package tests pass, continue with the real-Creem sections in `.resources/FLOW.md` and `.resources/SCENARIO_2_PURE_AGENT_FULL.md`.
 
 ## Fallback if Docker is unavailable
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate
-php artisan creem-agent:install
-php artisan serve --host=0.0.0.0 --port=8000
-php artisan queue:work --queue=creem-agent
-php artisan schedule:work
+bash scripts/smoke-simulator-demo.sh
 ```
 
 ## Guest Additions & Shared Folder (optional)

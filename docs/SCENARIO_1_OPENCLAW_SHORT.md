@@ -1,5 +1,11 @@
 # Scenario 1 Short: OpenClaw + Docker + FrankenPHP
 
+Use this as an overlay on top of the two-approach model:
+
+1. complete the simulator-first checks
+2. attach OpenClaw
+3. only then move to real Creem callbacks if needed
+
 ## Tokens first
 
 - Creem API key: Creem Dashboard -> API Keys
@@ -37,6 +43,8 @@ openclaw status
 
 ## App init
 
+Important: the current compose file does not ship a dedicated agent app container. The supported flow today is simulator smoke plus package-level Telegram tests, not `docker compose exec app php artisan creem-agent:*`. If you want real Telegram messages to be answered from simulator-backed data, add a separate Laravel host app connected to `http://simulator/api/v1`.
+
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 	docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
@@ -49,20 +57,13 @@ cd /home/roman/php/run/laravel-creem-agent-demo
 	php artisan migrate --seed &&
 	php artisan octane:install --server=frankenphp --no-interaction
 '
-	# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
-	docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-	git config --global --add safe.directory /app && composer install --no-interaction &&
-	test -f .env || cp .env.example .env &&
-	mkdir -p database && touch database/database.sqlite &&
-	php artisan key:generate &&
-	php artisan vendor:publish --tag=creem-config &&
-	php artisan vendor:publish --tag=creem-cli-config &&
-	php artisan vendor:publish --tag=creem-agent-config &&
-	php artisan vendor:publish --tag=creem-agent-migrations &&
-	php artisan migrate &&
-	php artisan octane:install --server=frankenphp --no-interaction
-'
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
+bash scripts/smoke-simulator-demo.sh
+
+cd /home/roman/php/run/laravel-creem-agent
+php vendor/bin/pest \
+  tests/Feature/TelegramWebhookControllerTest.php \
+  tests/Feature/TelegramWebhookControllerMoreTest.php \
+  tests/Feature/TelegramWebhookControllerFailureTest.php
 ```
 
 Copy `.env.example` to `.env` before initialization and do a one-time setup of the values you plan to use. Put OpenClaw options, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file, even if you will start the `ngrok` container only later when public webhook delivery is needed.
@@ -99,7 +100,8 @@ Docker Compose maps these root values into the `simulator` service from `docker-
 ## OpenClaw Telegram channel
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:openclaw-telegram-config
+cd /home/roman/php/run/laravel-creem-agent
+php artisan creem-agent:openclaw-telegram-config
 openclaw gateway
 openclaw pairing list telegram
 openclaw pairing approve telegram <CODE>
@@ -133,17 +135,45 @@ After you get `YOUR-NGROK-URL`, use it anywhere a public callback is required, e
 
 The same `.env` file can be loaded into your shell before running compose if you prefer not to pass `--env-file` explicitly.
 
-## Verify
+## Verify simulator-first approach
 
 ```bash
-curl -s http://127.0.0.1:8000/creem-agent/status | jq
-curl -s -X POST http://127.0.0.1:8000/creem-agent/chat -H 'Content-Type: application/json' -d '{"message":"status"}' | jq
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem:test-webhook checkout.completed
+cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/smoke-simulator-demo.sh
+
+cd /home/roman/php/run/laravel-creem-agent
+php vendor/bin/pest tests/Feature/TelegramWebhookControllerTest.php tests/Feature/TelegramWebhookControllerMoreTest.php tests/Feature/TelegramWebhookControllerFailureTest.php
 openclaw gateway
 openclaw pairing list telegram
 ```
+
+## Optional: simulator-backed Telegram plus OpenClaw cadence
+
+For demo mode, set heartbeat cadence in scheduler code, not in `.env`:
+
+```php
+Schedule::command('creem-agent:heartbeat --all-stores')
+		->everyMinute()
+		->runInBackground()
+		->withoutOverlapping();
+```
+
+Before asking for status or payment issues through Telegram or OpenClaw, create fresh simulator changes:
+
+```bash
+cd /home/roman/php/run/laravel-creem-agent-demo
+docker compose -f docker-compose.frankenphp.yml exec simulator \
+	php artisan simulator:advance --sales=3 --new-customers=2 --past-due=2 --cancellations=1 --send-webhooks
+docker compose -f docker-compose.frankenphp.yml exec simulator \
+	php artisan simulator:send-webhook payment.failed
+bash scripts/smoke-simulator-demo.sh
+```
+
+Then the dedicated simulator-backed agent host can answer messages such as `status`, `recent transactions`, `any payment issues?`, and `run heartbeat`.
+
+## Move to real Creem after simulator-first passes
+
+After the commands above are green, continue with the real-Creem sections in `.resources/FLOW.md` and `.resources/SCENARIO_1_OPENCLAW_FULL.md`.
 
 ## Guest Additions & Shared Folder (optional)
 

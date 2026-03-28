@@ -1,5 +1,7 @@
 # Creem Simulator
 
+This document describes Approach 1: simulator-first. Use it before any live Creem or OpenClaw demo because it is the only fully deterministic path in the current repository layout.
+
 ## Purpose
 
 `creem-simulator` is a dedicated Laravel application that mimics the subset of the Creem API used by:
@@ -37,6 +39,8 @@ The simulator persists all of this in SQLite, so you can:
 3. advance the simulator state
 4. run heartbeat again and observe meaningful changes
 
+For demo recordings, you can also connect a dedicated Laravel host app to the simulator and talk to that agent through Telegram while all business data still comes from simulator responses.
+
 ## Start simulator in Docker
 
 Before starting the simulator, configure `CREEM_SIMULATOR_*` values in the root `.env` (preferred) for a unified environment. You can also set them in `creem-simulator/.env` as simulator-local overrides.
@@ -59,7 +63,7 @@ If the simulator must call the public app URL instead of the internal Docker hos
 CREEM_SIMULATOR_AGENT_WEBHOOK_URL=https://YOUR-NGROK-URL/creem/webhook
 ```
 
-If `ngrok` is already running and you want the full demo stack from that point, use:
+If `ngrok` is already running and you want the currently supported demo flow from that point, use:
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
@@ -73,21 +77,10 @@ docker compose -f docker-compose.frankenphp.yml build app queue scheduler simula
   php artisan migrate --seed &&
   php artisan octane:install --server=frankenphp --no-interaction
 '
-# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
-docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
-  git config --global --add safe.directory /app && composer install --no-interaction &&
-  test -f .env || cp .env.example .env &&
-  mkdir -p database && touch database/database.sqlite &&
-  php artisan key:generate &&
-  php artisan vendor:publish --tag=creem-config &&
-  php artisan vendor:publish --tag=creem-cli-config &&
-  php artisan vendor:publish --tag=creem-agent-config &&
-  php artisan vendor:publish --tag=creem-agent-migrations &&
-  php artisan migrate &&
-  php artisan octane:install --server=frankenphp --no-interaction
-'
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
+bash scripts/smoke-simulator-demo.sh
 ```
+
+Important: the current compose file does not provide a dedicated Laravel agent app container. `app`, `queue`, and `scheduler` point at `creem-simulator`, so agent-specific `php artisan creem-agent:*` commands should be verified through the standalone Telegram smoke step in `bash scripts/smoke-simulator-demo.sh` and the package tests in `../laravel-creem-agent`, not through `docker compose exec app`.
 
 If you only need the simulator itself:
 
@@ -116,9 +109,9 @@ printf "\nOCTANE_SERVER=frankenphp\n" >> creem-simulator/.env
 ```
 ```
 
-## Point agent app to simulator
+## Point a separate agent host to simulator
 
-In the Laravel app that hosts `laravel-creem-agent`:
+In a separate Laravel app that hosts `laravel-creem-agent`:
 
 ```env
 CREEM_TEST_MODE=true
@@ -135,7 +128,7 @@ If both apps run inside the same Docker Compose network, `http://simulator/api/v
 To let the simulator push webhooks directly into the agent app container:
 
 ```env
-CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
+CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://agent-app/creem/webhook
 CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
 CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
@@ -146,12 +139,55 @@ This works entirely on the internal Docker network.
 
 ```bash
 docker compose -f docker-compose.frankenphp.yml exec simulator php artisan simulator:seed-demo --reset
-php artisan creem-agent:heartbeat
-docker compose -f docker-compose.frankenphp.yml exec simulator php artisan simulator:advance --sales=3 --new-customers=2 --past-due=1 --cancellations=1
-php artisan creem-agent:heartbeat
+docker compose -f docker-compose.frankenphp.yml exec simulator php artisan simulator:advance --sales=3 --new-customers=2 --past-due=2 --cancellations=1 --send-webhooks
+docker compose -f docker-compose.frankenphp.yml exec simulator php artisan simulator:send-webhook payment.failed
+bash scripts/smoke-simulator-demo.sh
 ```
 
-Run the heartbeat command in whichever Laravel application hosts `laravel-creem-agent`. That host app can run locally, in another container, or in a future dedicated demo app.
+Run heartbeat and Telegram verification in whichever Laravel application hosts `laravel-creem-agent`. In this repository today, webhook simulation and standalone Telegram outbound-send smoke live in `bash scripts/smoke-simulator-demo.sh`, while package-level Telegram send/receive coverage lives in `../laravel-creem-agent` tests.
+
+## Demo heartbeat cadence
+
+For simulator demos, do not look for an `.env` variable to make heartbeat run every minute. In the current setup, the cadence is controlled by the Laravel scheduler definition, not by `.env`.
+
+Use this in the Laravel host app that runs `laravel-creem-agent`:
+
+```php
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('creem-agent:heartbeat --all-stores')
+  ->everyMinute()
+  ->runInBackground()
+  ->withoutOverlapping();
+```
+
+The demo `scheduler` container already executes `php artisan schedule:run` every 60 seconds. Changing the scheduled command to `everyMinute()` is what removes the four-hour wait during demos.
+
+## Simulator-backed Telegram loop
+
+If you want to send real Telegram messages and receive simulator-backed answers, connect a dedicated Laravel host app to the simulator API:
+
+```env
+CREEM_TEST_MODE=true
+CREEM_TEST_API_URL=http://simulator/api/v1
+CREEM_API_URL=http://simulator/api/v1
+CREEM_AGENT_TELEGRAM_MODE=laravel
+CREEM_AGENT_TELEGRAM_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
+CREEM_AGENT_TELEGRAM_CHAT_ID=YOUR_TELEGRAM_CHAT_ID
+```
+
+Then register the Telegram webhook to that agent host and use messages such as:
+
+```text
+status
+recent transactions
+any payment issues?
+run heartbeat
+```
+
+After running `simulator:advance` with new sales and `past_due` changes, those Telegram questions will reflect simulator-backed data.
+
+Once this flow is green, move to the real-Creem runbooks for public webhook delivery and live store data.
 
 ## Manual webhook test
 
