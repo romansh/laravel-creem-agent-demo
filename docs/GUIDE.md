@@ -135,7 +135,7 @@ Treat it as the bridge between the two approaches:
 - simulator-first for supported local verification
 - real Creem for public callback verification once the dedicated agent host exists
 
-Current repository caveat: the compose file in this repository does not yet include a separate agent-hosting Laravel app container. The checked-in `app` service points at `creem-simulator`, so direct HTTP examples such as `/creem-agent/status` and `/creem-agent/chat` describe the intended target architecture, not the currently runnable compose topology. The supported verification flow today is `bash scripts/smoke-simulator-demo.sh` plus the Telegram package tests in `../laravel-creem-agent`, with the smoke runner now including a standalone outbound-send check for Telegram.
+Current repository caveat: the compose file in this repository uses the generated `creem-simulator` app as the shared Laravel runtime. The demo installer adds `laravel-creem-agent` into that app, so heartbeat is runnable directly through `bash scripts/run-heartbeat.sh`. The broader smoke verification flow remains `bash scripts/smoke-simulator-demo.sh`, with maintainers optionally layering package tests on top via `CREEM_AGENT_PACKAGE_REPO`.
 
 If no VM is needed, the same Docker Compose stack can run on the local machine. If `sudo` is unavailable, this still works in current-user standard agent mode as long as Docker is already available to the user.
 
@@ -157,7 +157,7 @@ Instead of MCP, the integration is intentionally simple:
 
 This gives us a stable contract even if OpenClaw's own installation method changes.
 
-In the current repository, treat this as the target contract for Approach 2. Approach 1 remains simulator smoke plus package-level Telegram verification.
+In the current repository, treat this as the target contract for Approach 2. Approach 1 is now simulator smoke plus direct demo heartbeat verification, with optional maintainer package checks layered on top.
 
 ### What to install
 
@@ -200,15 +200,16 @@ In that mode Telegram should point to `/creem-agent/telegram/webhook`, not to Op
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
-
-cd /home/roman/php/run/laravel-creem-agent
-php vendor/bin/pest \
-    tests/Feature/TelegramWebhookControllerTest.php \
-    tests/Feature/TelegramWebhookControllerMoreTest.php \
-    tests/Feature/TelegramWebhookControllerFailureTest.php
+bash scripts/run-heartbeat.sh --all-stores
 ```
 
-If those checks pass, simulator delivery, Telegram outbound-send smoke, and package-level Telegram send/receive logic are all covered. A future dedicated `agent-app` service can then add HTTP E2E on top.
+Optional maintainer-only package verification:
+
+```bash
+CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
+```
+
+If the smoke runner and direct heartbeat command pass, simulator delivery, direct heartbeat execution, and Telegram outbound-send smoke are covered. Maintainers can layer package-level Telegram send/receive checks on top when a separate `laravel-creem-agent` checkout is available. A future dedicated `agent-app` service can then add isolated HTTP E2E on top.
 
 ## Edge Cases That Matter
 

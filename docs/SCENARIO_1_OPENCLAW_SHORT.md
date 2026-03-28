@@ -43,7 +43,7 @@ openclaw status
 
 ## App init
 
-Important: the current compose file does not ship a dedicated agent app container. The supported flow today is simulator smoke plus package-level Telegram tests, not `docker compose exec app php artisan creem-agent:*`. If you want real Telegram messages to be answered from simulator-backed data, add a separate Laravel host app connected to `http://simulator/api/v1`.
+Important: the current compose file uses the generated `creem-simulator` app as the shared Laravel runtime. The demo installer now adds `laravel-creem-agent` into that app, so heartbeat is available directly through `bash scripts/run-heartbeat.sh`.
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
@@ -60,11 +60,9 @@ cd /home/roman/php/run/laravel-creem-agent-demo
 '
 bash scripts/smoke-simulator-demo.sh
 
-cd /home/roman/php/run/laravel-creem-agent
-php vendor/bin/pest \
-  tests/Feature/TelegramWebhookControllerTest.php \
-  tests/Feature/TelegramWebhookControllerMoreTest.php \
-  tests/Feature/TelegramWebhookControllerFailureTest.php
+bash scripts/run-heartbeat.sh --all-stores
+
+CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
 Copy `.env.example` to `.env` before initialization and do a one-time setup of the values you plan to use. Put OpenClaw options, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file, even if you will start the `ngrok` container only later when public webhook delivery is needed.
@@ -101,7 +99,7 @@ Docker Compose maps these root values into the `simulator` service from `docker-
 ## OpenClaw Telegram channel
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent
+cd /path/to/your-agent-host-app
 php artisan creem-agent:openclaw-telegram-config
 openclaw gateway
 openclaw pairing list telegram
@@ -142,8 +140,7 @@ The same `.env` file can be loaded into your shell before running compose if you
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 
-cd /home/roman/php/run/laravel-creem-agent
-php vendor/bin/pest tests/Feature/TelegramWebhookControllerTest.php tests/Feature/TelegramWebhookControllerMoreTest.php tests/Feature/TelegramWebhookControllerFailureTest.php
+CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 openclaw gateway
 openclaw pairing list telegram
 ```

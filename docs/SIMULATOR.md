@@ -39,7 +39,7 @@ The simulator persists all of this in SQLite, so you can:
 3. advance the simulator state
 4. run heartbeat again and observe meaningful changes
 
-For demo recordings, you can also connect a dedicated Laravel host app to the simulator and talk to that agent through Telegram while all business data still comes from simulator responses.
+For demo recordings, the checked-in `app` service can now run heartbeats directly because `laravel-creem-agent` is installed into the generated simulator app. A separate Laravel host app is optional only when you want stricter production-like separation.
 
 ## Start simulator in Docker
 
@@ -82,7 +82,7 @@ docker compose -f docker-compose.frankenphp.yml build app queue scheduler simula
 bash scripts/smoke-simulator-demo.sh
 ```
 
-Important: the current compose file does not provide a dedicated Laravel agent app container. `app`, `queue`, and `scheduler` point at `creem-simulator`, so agent-specific `php artisan creem-agent:*` commands should be verified through the standalone Telegram smoke step in `bash scripts/smoke-simulator-demo.sh` and the package tests in `../laravel-creem-agent`, not through `docker compose exec app`.
+Important: the current compose file runs the generated `creem-simulator` app as the shared Laravel runtime for `app`, `queue`, and `scheduler`. The demo installer now places `laravel-creem-agent` inside that app, so heartbeat is available directly through `bash scripts/run-heartbeat.sh` or `docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat`.
 
 If you only need the simulator itself:
 
@@ -146,7 +146,7 @@ docker compose -f docker-compose.frankenphp.yml exec simulator php artisan simul
 bash scripts/smoke-simulator-demo.sh
 ```
 
-Run heartbeat and Telegram verification in whichever Laravel application hosts `laravel-creem-agent`. In this repository today, webhook simulation and standalone Telegram outbound-send smoke live in `bash scripts/smoke-simulator-demo.sh`, while package-level Telegram send/receive coverage lives in `../laravel-creem-agent` tests.
+Run heartbeat directly in the checked-in demo stack with `bash scripts/run-heartbeat.sh --all-stores`. In this repository, webhook simulation and standalone Telegram outbound-send smoke live in `bash scripts/smoke-simulator-demo.sh`, while optional maintainer package-level Telegram coverage can still be added by pointing `CREEM_AGENT_PACKAGE_REPO` at a separate `laravel-creem-agent` checkout.
 
 ## Demo heartbeat cadence
 
@@ -167,7 +167,7 @@ The demo `scheduler` container already executes `php artisan schedule:run` every
 
 ## Simulator-backed Telegram loop
 
-If you want to send real Telegram messages and receive simulator-backed answers, connect a dedicated Laravel host app to the simulator API:
+If you want to send real Telegram messages and receive simulator-backed answers with a separate deployment boundary, connect a dedicated Laravel host app to the simulator API:
 
 ```env
 CREEM_TEST_MODE=true

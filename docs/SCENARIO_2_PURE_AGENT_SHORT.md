@@ -16,7 +16,7 @@ Use this as the default execution order:
 
 ## Preferred runtime: Docker + FrankenPHP
 
-Important: the current compose file does not yet include a separate HTTP agent app service. Use the smoke runner and package tests below as the authoritative verification path for this repo alone. If you want to send real Telegram messages and receive simulator-backed answers, add a separate Laravel host app connected to `http://simulator/api/v1`.
+Important: the current compose file uses the generated `creem-simulator` app as the shared Laravel runtime. The demo installer now adds `laravel-creem-agent` into that app, so heartbeat is available directly through `bash scripts/run-heartbeat.sh`.
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
@@ -32,12 +32,19 @@ cd /home/roman/php/run/laravel-creem-agent-demo
   php artisan octane:install --server=frankenphp --no-interaction
 '
 bash scripts/smoke-simulator-demo.sh
+```
 
-cd /home/roman/php/run/laravel-creem-agent
-php vendor/bin/pest \
-  tests/Feature/TelegramWebhookControllerTest.php \
-  tests/Feature/TelegramWebhookControllerMoreTest.php \
-  tests/Feature/TelegramWebhookControllerFailureTest.php
+Run heartbeat directly in the demo stack:
+
+```bash
+bash scripts/run-heartbeat.sh --all-stores
+bash scripts/run-heartbeat.sh --force --all-stores
+```
+
+Optional maintainer-only package verification:
+
+```bash
+CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
 Copy `.env.example` to `.env` before initialization and do a one-time setup of the values you plan to use. Put Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file, even if you will start the `ngrok` container only later when public webhook delivery is needed.
@@ -95,7 +102,7 @@ The same base URL is used for the Telegram webhook:
 After you get `YOUR-NGROK-URL`, use it for every public callback:
 
 - Creem webhook: `https://YOUR-NGROK-URL/creem/webhook`
-- Telegram webhook: part of the intended target architecture; today Telegram behavior is verified by package tests in `../laravel-creem-agent`
+- Telegram webhook: part of the intended target architecture; today end users should rely on the smoke runner, while maintainers may add package tests from a separate `laravel-creem-agent` checkout
 - Simulator callback, if you want simulator to call the public app URL
 
 The same `.env` file can be loaded into your shell with `set -o allexport; source .env; set +o allexport` before running compose if you prefer not to pass `--env-file` explicitly.
@@ -112,14 +119,17 @@ curl -s -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
+```
 
-cd /home/roman/php/run/laravel-creem-agent
-php vendor/bin/pest tests/Feature/TelegramWebhookControllerTest.php tests/Feature/TelegramWebhookControllerMoreTest.php tests/Feature/TelegramWebhookControllerFailureTest.php
+Optional maintainer-only package verification:
+
+```bash
+CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
 ## Optional: interactive Telegram on top of simulator
 
-For a real Telegram conversation against simulator-backed data, use a dedicated Laravel host app with:
+For a real Telegram conversation against simulator-backed data, you can use the same app service or a dedicated Laravel host app with:
 
 ```php
 Schedule::command('creem-agent:heartbeat --all-stores')

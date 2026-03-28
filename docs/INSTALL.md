@@ -150,15 +150,22 @@ Start services and run the supported verification flow:
 
 Current topology note:
 
-- The checked-in `docker-compose.frankenphp.yml` does not yet provide a dedicated Laravel agent app container.
-- `app`, `queue`, and `scheduler` currently point at `creem-simulator`, so `docker compose exec app php artisan creem-agent:*` is not a valid runtime path for this repository today.
-- Use the smoke runner for simulator/webhook verification and for standalone Telegram outbound-send smoke. Keep the package tests in `../laravel-creem-agent` as package-level Telegram send/receive verification.
+- The checked-in `docker-compose.frankenphp.yml` runs the generated `creem-simulator` app as the shared Laravel runtime for `app`, `queue`, and `scheduler`.
+- `bash scripts/install-simulator.sh` now installs `romansh/laravel-creem`, `romansh/laravel-creem-cli`, and `romansh/laravel-creem-agent` into that generated app.
+- Use the smoke runner for simulator/webhook verification and for standalone Telegram outbound-send smoke.
+- Package-level Telegram send/receive verification from `laravel-creem-agent` is maintainer-only and requires a separate source checkout. End users should not assume that checkout exists inside a VM or shared folder.
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
+bash scripts/run-heartbeat.sh --all-stores
+bash scripts/run-heartbeat.sh --force --all-stores
+```
 
-cd /home/roman/php/run/laravel-creem-agent
+Optional maintainer-only package verification:
+
+```bash
+cd /path/to/laravel-creem-agent
 php vendor/bin/pest \
     tests/Feature/TelegramWebhookControllerTest.php \
     tests/Feature/TelegramWebhookControllerMoreTest.php \
@@ -173,6 +180,15 @@ bash scripts/smoke-simulator-demo.sh
 ```
 
 Flow A is the quickest path for development and CI.
+
+Optional maintainer-only package checks inside the VM, if you intentionally mounted a separate `laravel-creem-agent` source checkout:
+
+```bash
+CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
+```
+In B2, keep Telegram on Laravel with `CREEM_AGENT_TELEGRAM_MODE=laravel`. The checked-in demo stack now supports direct heartbeat runs through `bash scripts/run-heartbeat.sh`, while maintainers can still add package tests on top by pointing `CREEM_AGENT_PACKAGE_REPO` at a separate `laravel-creem-agent` checkout.
+`bash scripts/run-heartbeat.sh` auto-detects whether your current env points at the local simulator or a real Creem API URL. In simulator mode it starts `simulator` and waits for readiness; in real-store or OpenClaw mode it skips that startup and just runs the heartbeat command.
+Notes: the demo repository root is not a standalone Laravel app with `artisan`, so the current no-Docker fallback is the smoke runner. Direct package verification from `laravel-creem-agent` is optional maintainer-only coverage, not a user prerequisite.
 
 GitHub package access
 
@@ -244,12 +260,8 @@ Then run the supported checks inside the VM:
 ```bash
 bash scripts/smoke-simulator-demo.sh
 
-cd /home/www/laravel-creem-agent
-php vendor/bin/pest \
-    tests/Feature/TelegramWebhookControllerTest.php \
-    tests/Feature/TelegramWebhookControllerMoreTest.php \
-    tests/Feature/TelegramWebhookControllerFailureTest.php
-```
+CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
+
 
 Flow B has two sub-variants:
 
@@ -263,7 +275,7 @@ After OpenClaw is provisioned inside the VM, configure `CREEM_AGENT_TELEGRAM_MOD
 
 B2 — Without OpenClaw (pure agent): skip the privileged installer and run only the Docker stack inside the guest (commands above). This is the simplest VM-based path when `sudo` is unavailable.
 
-In B2, keep Telegram on Laravel with `CREEM_AGENT_TELEGRAM_MODE=laravel`, but note that Telegram is currently verified through the standalone smoke step inside `bash scripts/smoke-simulator-demo.sh` plus the package tests in `../laravel-creem-agent`, rather than through a dedicated checked-in HTTP app container.
+In B2, keep Telegram on Laravel with `CREEM_AGENT_TELEGRAM_MODE=laravel`, but note that Telegram is currently verified through the standalone smoke step inside `bash scripts/smoke-simulator-demo.sh`. Maintainers can add package tests on top by pointing `CREEM_AGENT_PACKAGE_REPO` at a separate `laravel-creem-agent` checkout, rather than through a dedicated checked-in HTTP app container.
 
 -- End of recommended flows --
 
@@ -276,7 +288,7 @@ cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 ```
 
-Notes: the demo repository root is not a standalone Laravel app with `artisan`, so the current no-Docker fallback is the smoke runner plus direct package verification in `../laravel-creem-agent`, not `php artisan creem-agent:*` from the demo root.
+Notes: the demo repository root is not a standalone Laravel app with `artisan`, so the current no-Docker fallback is the smoke runner, not `php artisan creem-agent:*` from the demo root.
 
 ## Optional: VirtualBox (shared folder + Guest Additions)
 
@@ -301,9 +313,9 @@ After that, create per-package folders under `/hove/www` (e.g. `laravel-creem`, 
 
 ## Quick verification checklist
 
-- `bash scripts/smoke-simulator-demo.sh` → simulator + webhook smoke
-- `bash scripts/smoke-simulator-demo.sh` → simulator + webhook smoke + standalone Telegram outbound-send smoke
-- `cd ../laravel-creem-agent && php vendor/bin/pest tests/Feature/TelegramWebhookControllerTest.php tests/Feature/TelegramWebhookControllerMoreTest.php tests/Feature/TelegramWebhookControllerFailureTest.php` → package-level Telegram send/receive coverage
+- `bash scripts/smoke-simulator-demo.sh` → simulator + webhook smoke + user-facing heartbeat validation + standalone Telegram outbound-send smoke
+- `bash scripts/run-heartbeat.sh --all-stores` → direct demo heartbeat against the current simulator-backed stack
+- `CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh` → optional maintainer-only package Telegram coverage
 - `docker compose -f docker-compose.frankenphp.yml ps -a` → confirm simulator stack state
 
 ## Appendix: VirtualBox Guest Additions & Shared Folder (detailed)
@@ -385,8 +397,7 @@ Notes:
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 
-cd /home/roman/php/run/laravel-creem-agent
-php vendor/bin/pest tests/Feature/TelegramWebhookControllerTest.php tests/Feature/TelegramWebhookControllerMoreTest.php tests/Feature/TelegramWebhookControllerFailureTest.php
+CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
 ### 8.6 If sudo is unavailable
@@ -567,7 +578,7 @@ After running `php artisan vendor:publish`, verify that `config/creem.php` in yo
 
 ### No Notifications
 - Check channel configuration in `.env`
-- Run `php artisan creem-agent:heartbeat --force` to trigger a report
+- Run `bash scripts/run-heartbeat.sh --force --all-stores` to trigger a report in the checked-in demo stack
 - Check `storage/logs/laravel.log` for errors
 
 ### CLI Not Detected
@@ -576,7 +587,9 @@ After running `php artisan vendor:publish`, verify that `config/creem.php` in yo
 - Agent will auto-fallback to SDK — no action needed
 
 ### OpenClaw Not Reaching the Agent
-- For the current repository, first confirm the simulator-first checks are green: `bash scripts/smoke-simulator-demo.sh` and the Telegram package tests in `../laravel-creem-agent`
+- For the current repository, first confirm the simulator-first checks are green: `bash scripts/smoke-simulator-demo.sh`
+- If you maintain a separate `laravel-creem-agent` source checkout, optionally add package-level Telegram checks with `CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh`
+- For user-facing heartbeat checks in this repository, prefer `bash scripts/run-heartbeat.sh --all-stores`
 - Only use direct checks against `http://127.0.0.1:8000`, `GET /creem-agent/status`, and `POST /creem-agent/chat` when you are already on the real-Creem approach with a dedicated Laravel agent host
 - If OpenClaw runs on another host, expose the app via Nginx/Caddy and update `APP_URL`
 

@@ -31,10 +31,10 @@ Before you start: copy `.env.example` to `.env` and do a one-time setup of the v
 
 Recommended demo order:
 
-1. run `bash scripts/smoke-simulator-demo.sh` to create the baseline heartbeat and verify simulator webhooks plus outbound Telegram smoke
-2. add new simulator sales and failures with `simulator:advance` and `simulator:send-webhook payment.failed`
-3. run `bash scripts/smoke-simulator-demo.sh` again so heartbeat shows the delta
-4. if you need a real Telegram conversation against simulator-backed data, connect a dedicated Laravel host app to `http://simulator/api/v1` and register its Telegram webhook
+1. run `bash scripts/smoke-simulator-demo.sh` to bootstrap the simulator-backed stack and verify the demo path end-to-end
+2. run `bash scripts/run-heartbeat.sh --all-stores` to create the baseline heartbeat directly from the checked-in demo stack
+3. add new simulator sales and failures with `simulator:advance` and `simulator:send-webhook payment.failed`
+4. run `bash scripts/run-heartbeat.sh --force --all-stores` so the heartbeat shows the delta without waiting for the next cadence window
 
 For demo cadence, do not look for a dedicated `.env` switch. Use `everyMinute()` in the Laravel scheduler definition; the Docker `scheduler` loop already runs `schedule:run` every 60 seconds.
 
@@ -68,11 +68,12 @@ docker compose -f docker-compose.frankenphp.yml build app queue scheduler simula
 	php artisan octane:install --server=frankenphp --no-interaction
 '
 docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:install
-docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat
+bash scripts/smoke-simulator-demo.sh
 ```
 
 After that, read the current public tunnel URL from the `ngrok` inspector and use it for Creem or Telegram webhooks.
+
+The checked-in demo now installs `romansh/laravel-creem`, `romansh/laravel-creem-cli`, and `romansh/laravel-creem-agent` into the generated `creem-simulator` app. Heartbeat is available directly in the demo stack through `bash scripts/run-heartbeat.sh` or `docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat`. The wrapper auto-detects whether the current env points at `http://simulator/...` or at a real Creem API URL, so it works for both simulator-backed demos and real-store/OpenClaw setups.
 
 ## Public webhook tunnel with Docker
 
@@ -99,14 +100,9 @@ Once `ngrok` is already running, initialize and start the rest of the stack with
 
 ## Publish package configs
 
-Before running `php artisan creem-agent:install` you should publish the package configuration files and migrations into the demo app. This ensures `config/creem.php`, `config/creem-cli.php` and `config/creem-agent.php` are present and editable.
-
-Run these commands inside the app container or from the app project root:
+The installer already syncs the demo-specific `creem-agent` configuration into `creem-simulator/config/creem-agent.php` and copies the package migration used for agent logs. If you need to re-run the package setup manually inside the app container, use:
 
 ```bash
-php artisan vendor:publish --provider="Romansh\LaravelCreem\CreemServiceProvider" --tag=creem-config
-php artisan vendor:publish --provider="Romansh\LaravelCreemCli\CreemCliServiceProvider" --tag=creem-cli-config
-php artisan vendor:publish --provider="Romansh\LaravelCreemAgent\CreemAgentServiceProvider" --tag=creem-agent-config
 php artisan vendor:publish --provider="Romansh\LaravelCreemAgent\CreemAgentServiceProvider" --tag=creem-agent-migrations
 php artisan migrate
 ```
@@ -149,7 +145,14 @@ Use these files as input for manual testing or when wiring the demo into a test 
 
 If you want deterministic local testing without waiting for real payments or public webhooks, install the simulator with `bash scripts/install-simulator.sh` and then follow `docs/SIMULATOR.md`.
 
-If you want simulator-backed Telegram interaction, use a dedicated Laravel host app with:
+If you want a direct demo heartbeat command, use:
+
+```bash
+bash scripts/run-heartbeat.sh --all-stores
+bash scripts/run-heartbeat.sh --force --all-stores
+```
+
+If you want simulator-backed Telegram interaction with scheduled heartbeats, use:
 
 ```php
 use Illuminate\Support\Facades\Schedule;

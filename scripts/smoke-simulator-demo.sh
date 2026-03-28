@@ -12,6 +12,14 @@ ensure_simulator_installed() {
 
   "$ROOT_DIR/scripts/install-simulator.sh"
 }
+resolve_agent_repo() {
+  if [ -n "${CREEM_AGENT_PACKAGE_REPO:-}" ]; then
+    printf '%s\n' "$CREEM_AGENT_PACKAGE_REPO"
+    return 0
+  fi
+
+  printf '%s\n' "$ROOT_DIR/../laravel-creem-agent"
+}
 
 cleanup() {
   docker rm -f webhook-receiver telegram-smoke-receiver >/dev/null 2>&1 || true
@@ -31,15 +39,31 @@ fi
 
 ensure_simulator_installed
 
+docker compose -f "$COMPOSE_FILE" down --remove-orphans >/dev/null 2>&1 || true
+
+wait_for_simulator() {
+  docker compose -f "$COMPOSE_FILE" run --rm -T app php -r '
+    for ($i = 0; $i < 30; $i++) {
+        $body = @file_get_contents("http://simulator/");
+        if ($body !== false && str_contains($body, "Creem Simulator")) {
+            exit(0);
+        }
+        usleep(500000);
+    }
+    fwrite(STDERR, "Simulator HTTP API did not become ready in time." . PHP_EOL);
+    exit(1);
+  '
+}
+
 run_simulator() {
   docker compose -f "$COMPOSE_FILE" run --rm simulator sh -lc "$1"
 }
 
 run_agent_package_tests() {
-  local agent_repo="$ROOT_DIR/../laravel-creem-agent"
+  local agent_repo="$(resolve_agent_repo)"
 
   if [ ! -d "$agent_repo" ]; then
-    echo "Telegram smoke status: skipped (../laravel-creem-agent not found)"
+    echo "Telegram package tests: skipped (optional laravel-creem-agent source checkout not configured)"
     return 0
   fi
 
@@ -57,12 +81,17 @@ run_agent_package_tests() {
 }
 
 run_agent_telegram_runtime_smoke() {
-  local agent_repo="$ROOT_DIR/../laravel-creem-agent"
+  local agent_repo="$(resolve_agent_repo)"
   local telegram_smoke_port="${TELEGRAM_SMOKE_PORT:-18081}"
 
   if [ ! -d "$agent_repo" ]; then
-    echo "Telegram runtime smoke status: skipped (../laravel-creem-agent not found)"
+    echo "Telegram runtime smoke: skipped (optional laravel-creem-agent source checkout not configured)"
     return 0
+  fi
+  if [ -d "$(resolve_agent_repo)" ]; then
+    printf "Telegram send smoke: verified by standalone controller run in %s\n" "$(resolve_agent_repo)"
+  else
+    printf "Telegram send smoke: skipped maintainer-only package runtime check (no laravel-creem-agent source checkout)\n"
   fi
 
   docker rm -f telegram-smoke-receiver >/dev/null 2>&1 || true
@@ -88,7 +117,7 @@ run_agent_telegram_runtime_smoke() {
   docker rm -f telegram-smoke-receiver >/dev/null 2>&1 || true
 }
 
-echo "[1/5] Bootstrap simulator container"
+echo "[1/6] Bootstrap simulator container"
 run_simulator '
   CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET=test-secret \
   CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET=secondary-secret \
@@ -100,12 +129,13 @@ run_simulator '
   sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" &&
   mkdir -p "$(dirname "$sqlite_db")" &&
   rm -f "$sqlite_db" &&
+  rm -rf storage/creem-agent &&
   touch "$sqlite_db" &&
   php artisan key:generate --force &&
   php artisan migrate:fresh --seed --force
 '
 
-echo "[2/5] Run simulator flow tests"
+echo "[2/6] Run simulator flow tests"
 run_simulator '
   CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=1 \
   CREEM_SIMULATOR_RANDOM_SEED=2026 \
@@ -114,10 +144,21 @@ run_simulator '
   php artisan test tests/Feature/SimulatorFlowTest.php tests/Feature/SimulatorMultiStoreFlowTest.php
 '
 
-echo "[3/5] Run agent Telegram send/receive tests"
+run_simulator '
+  CREEM_SIMULATOR_RANDOM_SEED=2026 \
+  php artisan simulator:seed-demo --store=default --reset &&
+  CREEM_SIMULATOR_RANDOM_SEED=2026 php artisan simulator:seed-demo --store=secondary --reset
+'
+
+echo "[3/6] Run user heartbeat command"
+docker compose -f "$COMPOSE_FILE" up -d simulator >/dev/null
+wait_for_simulator
+docker compose -f "$COMPOSE_FILE" run --rm -T app php artisan creem-agent:heartbeat --force --all-stores
+
+echo "[4/6] Run agent Telegram send/receive tests"
 run_agent_package_tests
 
-echo "[4/5] Run agent Telegram runtime smoke"
+echo "[5/6] Run agent Telegram runtime smoke"
 run_agent_telegram_runtime_smoke
 
 PROJECT_NAME="$(basename "$ROOT_DIR")"
@@ -137,7 +178,7 @@ if [ -n "$NETWORK_NAME" ]; then
     sleep 1
   done
 
-  echo "[5/5] Run simulator smoke commands"
+  echo "[6/6] Run simulator smoke commands"
   run_simulator '
     CREEM_SIMULATOR_RANDOM_SEED=2026 \
     php artisan simulator:seed-demo --store=default --reset &&
@@ -176,7 +217,11 @@ if [ -n "$NETWORK_NAME" ]; then
   printf "%-10s-+-%-8s-+-%-9s-+-%-10s\n" "----------" "--------" "---------" "----------"
   printf "%-10s | %-8s | %-9s | %-10s\n" "$total" "$success_count" "$failed" "$signature_count"
 
-  printf "Telegram send smoke: verified by standalone controller run in ../laravel-creem-agent\n"
+  if [ -d "$(resolve_agent_repo)" ]; then
+    printf "Telegram send smoke: verified by standalone controller run in %s\n" "$(resolve_agent_repo)"
+  else
+    printf "Telegram send smoke: skipped maintainer-only package runtime check (no laravel-creem-agent source checkout)\n"
+  fi
 
   echo "Raw webhook responses saved to: $results_dir"
 
