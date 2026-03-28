@@ -12,7 +12,9 @@ if ! command -v composer >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ -f "${SIMULATOR_DIR}/composer.json" ] && grep -q '"name": "romansh/laravel-creem-store-simulator"' "${SIMULATOR_DIR}/composer.json"; then
+if [ -f "${SIMULATOR_DIR}/composer.json" ] \
+  && grep -q '"name": "romansh/laravel-creem-store-simulator"' "${SIMULATOR_DIR}/composer.json" \
+  && [ -f "${SIMULATOR_DIR}/docker/frankenphp/Dockerfile" ]; then
   echo "Simulator already installed at ${SIMULATOR_DIR}"
   exit 0
 fi
