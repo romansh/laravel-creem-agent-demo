@@ -25,7 +25,7 @@ List responses mirror Creem pagination and include `items`, `pagination`, and a 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo/creem-simulator
 cp .env.example .env
-touch database/database.sqlite
+sqlite_db="${DB_DATABASE:-database/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db"
 php artisan key:generate
 php artisan migrate --seed
 php artisan serve --host=0.0.0.0 --port=80  # simulator runs on container port 80; publish to host only if needed

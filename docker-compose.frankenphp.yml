@@ -7,6 +7,10 @@ services:
     volumes:
       - .:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
+      - creem_demo_sqlite:/var/lib/creem-simulator
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
     ports:
       - "8000:80"
     command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80
@@ -19,6 +23,10 @@ services:
     volumes:
       - .:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
+      - creem_demo_sqlite:/var/lib/creem-simulator
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
     command: php artisan queue:work --queue=creem-agent --tries=3 --verbose
 
   scheduler:
@@ -29,6 +37,10 @@ services:
     volumes:
       - .:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
+      - creem_demo_sqlite:/var/lib/creem-simulator
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
     command: sh -lc "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
 
   ngrok:
@@ -49,9 +61,12 @@ services:
     working_dir: /app
     volumes:
       - ./creem-simulator:/app
+      - creem_demo_sqlite:/var/lib/creem-simulator
     expose:
       - "80"
     environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
       CREEM_SIMULATOR_DEFAULT_API_KEY: ${CREEM_SIMULATOR_DEFAULT_API_KEY}
       CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET: ${CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET}
       CREEM_SIMULATOR_SECONDARY_API_KEY: ${CREEM_SIMULATOR_SECONDARY_API_KEY}
@@ -60,3 +75,6 @@ services:
       CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET: ${CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET}
       CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS: ${CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS}
     command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80
+
+volumes:
+  creem_demo_sqlite:

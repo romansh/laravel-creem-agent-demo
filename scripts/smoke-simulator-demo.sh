@@ -87,9 +87,10 @@ run_simulator '
   git config --global --add safe.directory /app &&
   composer install --no-interaction >/tmp/composer.log &&
   test -f .env || cp .env.example .env &&
-  mkdir -p database &&
-  rm -f database/database.sqlite &&
-  touch database/database.sqlite &&
+  sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" &&
+  mkdir -p "$(dirname "$sqlite_db")" &&
+  rm -f "$sqlite_db" &&
+  touch "$sqlite_db" &&
   php artisan key:generate --force &&
   php artisan migrate:fresh --seed --force
 '

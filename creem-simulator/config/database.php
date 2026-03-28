@@ -3,6 +3,26 @@
 use Illuminate\Support\Str;
 use Pdo\Mysql;
 
+$sqliteDatabase = env('DB_DATABASE', database_path('database.sqlite'));
+
+if (is_string($sqliteDatabase) && $sqliteDatabase !== '' && $sqliteDatabase !== ':memory:') {
+    $sqliteDatabasePath = str_starts_with($sqliteDatabase, DIRECTORY_SEPARATOR)
+        ? $sqliteDatabase
+        : base_path($sqliteDatabase);
+
+    $sqliteDirectory = dirname($sqliteDatabasePath);
+
+    if (! is_dir($sqliteDirectory)) {
+        @mkdir($sqliteDirectory, 0777, true);
+    }
+
+    if (! file_exists($sqliteDatabasePath)) {
+        @touch($sqliteDatabasePath);
+    }
+
+    $sqliteDatabase = $sqliteDatabasePath;
+}
+
 return [
 
     /*
@@ -35,7 +55,7 @@ return [
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
-            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            'database' => $sqliteDatabase,
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
             'busy_timeout' => null,

@@ -49,7 +49,7 @@ docker compose -f docker-compose.frankenphp.yml build app queue scheduler simula
 	docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
 	git config --global --add safe.directory /app && composer install --no-interaction &&
 	test -f .env || cp .env.example .env &&
-	mkdir -p database && touch database/database.sqlite &&
+	sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
 	php artisan key:generate &&
 	php artisan migrate --seed &&
 	php artisan octane:install --server=frankenphp --no-interaction
@@ -57,7 +57,7 @@ docker compose -f docker-compose.frankenphp.yml build app queue scheduler simula
 	docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
 	git config --global --add safe.directory /app && composer install --no-interaction &&
 	test -f .env || cp .env.example .env &&
-	mkdir -p database && touch database/database.sqlite &&
+	sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
 	php artisan key:generate &&
 	php artisan vendor:publish --tag=creem-config --force &&
 	php artisan vendor:publish --tag=creem-cli-config --force &&
