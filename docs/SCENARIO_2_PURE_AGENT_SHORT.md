@@ -110,7 +110,18 @@ The same `.env` file can be loaded into your shell with `set -o allexport; sourc
 Telegram webhook URL:
 
 ```bash
-curl -s -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+Before running the command below, load the demo `.env` into your shell so the token variable is available, or export the token manually:
+
+```bash
+# Load variables from the demo .env (if present)
+set -o allexport; test -f .env && source .env || true; set +o allexport
+
+# Or set the token manually:
+# export CREEM_AGENT_TELEGRAM_TOKEN=YOUR_BOT_TOKEN
+```
+
+```bash
+curl -s -X POST "https://api.telegram.org/bot${CREEM_AGENT_TELEGRAM_TOKEN}/setWebhook" \
   -d "url=https://YOUR-NGROK-URL/creem-agent/telegram/webhook"
 ```
 
