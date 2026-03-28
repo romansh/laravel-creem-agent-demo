@@ -15,7 +15,7 @@ services:
       DB_DATABASE: /var/lib/creem-simulator/database.sqlite
     ports:
       - "8000:80"
-    command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80
+    command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80 --admin-port=2019
 
   queue:
     build:
@@ -78,7 +78,7 @@ services:
       CREEM_SIMULATOR_AGENT_WEBHOOK_URL: ${CREEM_SIMULATOR_AGENT_WEBHOOK_URL}
       CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET: ${CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET}
       CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS: ${CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS}
-    command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80
+    command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80 --admin-port=2019
 
 volumes:
   creem_demo_sqlite:
