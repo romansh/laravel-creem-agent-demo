@@ -9,9 +9,9 @@ use App\Models\Subscription;
 use App\Models\Transaction;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB as FacadeDB;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SimulatorScenarioService
 {
@@ -283,19 +283,21 @@ class SimulatorScenarioService
             'deliveries' => $deliveries,
         ];
 
-        // Persist last advance counts into DB for tests (pseudo-deterministic assertion)
+        // Persist last advance counts only when a test-created table exists.
         try {
-            FacadeDB::table('simulator_advance_results')->updateOrInsert(
-                ['store' => $store],
-                [
-                    'events_count' => count($events),
-                    'deliveries_count' => count($deliveries),
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
-            );
+            if (Schema::hasTable('simulator_advance_results')) {
+                FacadeDB::table('simulator_advance_results')->updateOrInsert(
+                    ['store' => $store],
+                    [
+                        'events_count' => count($events),
+                        'deliveries_count' => count($deliveries),
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
+            }
         } catch (\Throwable $e) {
-            // ignore DB write failures when migrations haven't been run
+            // Ignore optional test bookkeeping failures.
         }
 
         return $result;
