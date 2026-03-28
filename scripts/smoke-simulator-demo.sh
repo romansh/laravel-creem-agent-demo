@@ -97,7 +97,7 @@ if [ -n "$NETWORK_NAME" ]; then
   printf "%-10s-+-%-8s-+-%-9s-+-%-10s\n" "----------" "--------" "---------" "----------"
   printf "%-10s | %-8s | %-9s | %-10s\n" "$total" "$success_count" "$failed" "$signature_count"
 
-  echo "\nRaw responses saved to: $results_dir"
+  echo "Raw responses saved to: $results_dir"
 
   docker rm -f webhook-receiver >/dev/null || true
 else
