@@ -206,7 +206,7 @@ bash scripts/run-heartbeat.sh --all-stores
 Optional maintainer-only package verification:
 
 ```bash
-CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
+CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
 If the smoke runner and direct heartbeat command pass, simulator delivery, direct heartbeat execution, and Telegram outbound-send smoke are covered. Maintainers can layer package-level Telegram send/receive checks on top when a separate `laravel-creem-agent` checkout is available. A future dedicated `agent-app` service can then add isolated HTTP E2E on top.

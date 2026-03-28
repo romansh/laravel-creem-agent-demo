@@ -62,7 +62,7 @@ bash scripts/smoke-simulator-demo.sh
 
 bash scripts/run-heartbeat.sh --all-stores
 
-CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
+CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
 Copy `.env.example` to `.env` before initialization and do a one-time setup of the values you plan to use. Put OpenClaw options, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file, even if you will start the `ngrok` container only later when public webhook delivery is needed.
@@ -140,7 +140,7 @@ The same `.env` file can be loaded into your shell before running compose if you
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 
-CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
+CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 openclaw gateway
 openclaw pairing list telegram
 ```

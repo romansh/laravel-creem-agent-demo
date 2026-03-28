@@ -165,7 +165,7 @@ bash scripts/run-heartbeat.sh --force --all-stores
 Optional maintainer-only package verification:
 
 ```bash
-cd /path/to/laravel-creem-agent
+cd /home/www/laravel-creem-agent
 php vendor/bin/pest \
     tests/Feature/TelegramWebhookControllerTest.php \
     tests/Feature/TelegramWebhookControllerMoreTest.php \
@@ -227,7 +227,7 @@ The machine or container user running Composer must have read access to these re
 
 In the VM the timing is the same as on the host: copy `.env.example` to `.env`, fill it once with the values you need, then run initialization. The `ngrok` service can start later when you need a public HTTPS callback URL, but its token should already be present in the same `.env` file.
 
-Summary: provision a VM, mount the host repo into the guest (for example at `/hove/www`), then run the Docker-based setup inside the VM. This keeps host clean and simulates a small VPS.
+Summary: provision a VM, mount the host repo into the guest (for example at `/home/www`), then run the Docker-based setup inside the VM. This keeps host clean and simulates a small VPS.
 
 Common VM bootstrap (guest):
 
@@ -315,7 +315,7 @@ After that, create per-package folders under `/hove/www` (e.g. `laravel-creem`, 
 
 - `bash scripts/smoke-simulator-demo.sh` → simulator + webhook smoke + user-facing heartbeat validation + standalone Telegram outbound-send smoke
 - `bash scripts/run-heartbeat.sh --all-stores` → direct demo heartbeat against the current simulator-backed stack
-- `CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh` → optional maintainer-only package Telegram coverage
+- `CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh` → optional maintainer-only package Telegram coverage
 - `docker compose -f docker-compose.frankenphp.yml ps -a` → confirm simulator stack state
 
 ## Appendix: VirtualBox Guest Additions & Shared Folder (detailed)
@@ -397,7 +397,7 @@ Notes:
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 
-CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
+CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
 ### 8.6 If sudo is unavailable
@@ -517,7 +517,7 @@ php artisan schedule:work
 
 For production, use cron:
 ```
-* * * * * cd /path/to/project && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /home/www/project && php artisan schedule:run >> /dev/null 2>&1
 ```
 
 ## Step 11: Test the Chat
@@ -588,9 +588,9 @@ After running `php artisan vendor:publish`, verify that `config/creem.php` in yo
 
 ### OpenClaw Not Reaching the Agent
 - For the current repository, first confirm the simulator-first checks are green: `bash scripts/smoke-simulator-demo.sh`
-- If you maintain a separate `laravel-creem-agent` source checkout, optionally add package-level Telegram checks with `CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh`
+- If you maintain a separate `laravel-creem-agent` source checkout, optionally add package-level Telegram checks with `CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh`
 - For user-facing heartbeat checks in this repository, prefer `bash scripts/run-heartbeat.sh --all-stores`
-- Only use direct checks against `http://127.0.0.1:8000`, `GET /creem-agent/status`, and `POST /creem-agent/chat` when you are already on the real-Creem approach with a dedicated Laravel agent host
+- In this repository, the HTTP agent endpoints are served by the checked-in demo stack itself after `docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator`, so use direct checks against `http://127.0.0.1:8000/creem-agent/status` and `http://127.0.0.1:8000/creem-agent/chat` without switching to a separate `laravel-creem-agent` checkout
 - If OpenClaw runs on another host, expose the app via Nginx/Caddy and update `APP_URL`
 
 ### Webhooks are not arriving

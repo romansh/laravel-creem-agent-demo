@@ -44,7 +44,7 @@ bash scripts/run-heartbeat.sh --force --all-stores
 Optional maintainer-only package verification:
 
 ```bash
-CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
+CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
 Copy `.env.example` to `.env` before initialization and do a one-time setup of the values you plan to use. Put Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file, even if you will start the `ngrok` container only later when public webhook delivery is needed.
@@ -124,7 +124,7 @@ bash scripts/smoke-simulator-demo.sh
 Optional maintainer-only package verification:
 
 ```bash
-CREEM_AGENT_PACKAGE_REPO=/path/to/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
+CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
 ## Optional: interactive Telegram on top of simulator
