@@ -63,7 +63,8 @@ When to fill tokens and variables: copy `.env.example` to `.env` before the init
 `test -f .env || cp .env.example .env` in scripts is a fallback only; if you already have custom values, the command should not overwrite them. If you run automation with no `.env`, this fallback ensures the file exists.
 
 Simulator `.env` handling for demo runs
-- For the bundled `creem-simulator`, you do not need to manually create or edit `creem-simulator/.env` during local demo or smoke runs. The provided automation and `scripts/smoke-simulator-demo.sh` will copy `creem-simulator/.env.example` to `creem-simulator/.env` when `.env` is missing and will generate an application key inside the simulator container (`php artisan key:generate --force`).
+- The simulator is no longer checked into this repository. Install it into `./creem-simulator` with `bash scripts/install-simulator.sh` before Docker builds or smoke runs.
+- After installation, you do not need to manually create or edit `creem-simulator/.env` during local demo or smoke runs. The provided automation and `scripts/smoke-simulator-demo.sh` will copy `creem-simulator/.env.example` to `creem-simulator/.env` when `.env` is missing and will generate an application key inside the simulator container (`php artisan key:generate --force`).
 - This automatic copy-and-generate behavior is intended only for local/demo/CI use. For production or long-running environments, provide explicit secrets (`APP_KEY`, webhook URL/secret, API keys) via environment variables, Docker secrets, or your orchestration platform. Do not commit real secrets to the repository.
 
 If you plan to use multiple Creem stores (multi-store demo), add the secondary store variables to `.env` during that same setup step and then verify that the published `config/creem.php` maps those variables to the `secondary` profile. Look for `CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, and `CREEM_SECONDARY_API_URL` in the project `.env.example`.
@@ -98,7 +99,7 @@ What the demo `.env.example` covers
 - Optional OpenClaw integration: `CREEM_AGENT_OPENCLAW`, `OPENCLAW_ENDPOINT`, `OPENCLAW_WORKSPACE_PATH`, `OPENCLAW_SHARED_SECRET`.
 - LLM routing and provider credentials: the `CREEM_AGENT_LLM_*` block plus API keys for OpenAI, Anthropic, Gemini, OpenRouter, and Ollama.
 - Creem primary and secondary store credentials: `CREEM_API_*`, `CREEM_WEBHOOK_SECRET`, and `CREEM_SECONDARY_*`.
-- Simulator wiring: `CREEM_SIMULATOR_*` variables for internal webhook delivery from the bundled simulator.
+- Simulator wiring: `CREEM_SIMULATOR_*` variables for internal webhook delivery from the installed simulator package.
 
 Agent app `.env`:
 
@@ -114,7 +115,7 @@ CREEM_AGENT_TELEGRAM_CHAT_ID=...
 OCTANE_SERVER=frankenphp
 ```
 
-If you use the simulator, set these in `./.env` (preferred for unified configuration). You can also set them in `creem-simulator/.env` as simulator-local overrides.
+If you use the simulator, set these in `./.env` (preferred for unified configuration). You can also set them in `creem-simulator/.env` after running `bash scripts/install-simulator.sh`.
 
 ```env
 CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
@@ -129,6 +130,7 @@ From the host shell:
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/install-simulator.sh
 docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
 # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
 docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
@@ -224,6 +226,7 @@ Mount the host repo into the VM (see Appendix), then inside the guest:
 
 ```bash
 cd /home/www/laravel-creem-agent-demo
+bash scripts/install-simulator.sh
 docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
 docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
     git config --global --add safe.directory /app && composer install --no-interaction &&

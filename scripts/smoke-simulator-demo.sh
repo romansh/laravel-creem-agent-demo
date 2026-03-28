@@ -5,6 +5,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker-compose.frankenphp.yml"
 
+ensure_simulator_installed() {
+  if [ -f "$ROOT_DIR/creem-simulator/composer.json" ] && grep -q '"name": "romansh/laravel-creem-store-simulator"' "$ROOT_DIR/creem-simulator/composer.json"; then
+    return 0
+  fi
+
+  "$ROOT_DIR/scripts/install-simulator.sh"
+}
+
 cleanup() {
   docker rm -f webhook-receiver telegram-smoke-receiver >/dev/null 2>&1 || true
 }
@@ -20,6 +28,8 @@ if ! docker compose version >/dev/null 2>&1; then
   echo "docker compose is required" >&2
   exit 1
 fi
+
+ensure_simulator_installed
 
 run_simulator() {
   docker compose -f "$COMPOSE_FILE" run --rm simulator sh -lc "$1"

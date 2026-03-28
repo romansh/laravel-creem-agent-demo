@@ -6,7 +6,7 @@ This demo package for `laravel-creem-agent` contains configuration, prompts, and
 ## Repository contents
 - `docker/` — Dockerfile and related artifacts (frankenphp, etc.).
 - `docker-compose.frankenphp.yml` — example Docker Compose file for running the demo services, including optional `ngrok` tunneling.
-- `creem-simulator/` — standalone Laravel app that simulates the Creem API with SQLite-backed demo history.
+- `scripts/install-simulator.sh` — installs `romansh/laravel-creem-store-simulator` into `./creem-simulator` when the simulator app is needed.
 - `docs/` — user-facing setup guides and short scenarios.
 - `.resources/` — internal recording runbooks, full demo scenarios, and planning materials.
 
@@ -44,6 +44,7 @@ If you are starting from the point where `ngrok` is already up, continue with th
 
 ```bash
 cd laravel-creem-agent-demo
+bash scripts/install-simulator.sh
 docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
 	# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
 	docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
@@ -146,7 +147,7 @@ Review the scenario documents:
 
 Use these files as input for manual testing or when wiring the demo into a test environment.
 
-If you want deterministic local testing without waiting for real payments or public webhooks, start with `creem-simulator/` and `docs/SIMULATOR.md`.
+If you want deterministic local testing without waiting for real payments or public webhooks, install the simulator with `bash scripts/install-simulator.sh` and then follow `docs/SIMULATOR.md`.
 
 If you want simulator-backed Telegram interaction, use a dedicated Laravel host app with:
 

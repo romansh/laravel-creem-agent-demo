@@ -4,7 +4,7 @@ This document describes Approach 1: simulator-first. Use it before any live Cree
 
 ## Purpose
 
-`creem-simulator` is a dedicated Laravel application that mimics the subset of the Creem API used by:
+`creem-simulator` is a generated working directory created by `bash scripts/install-simulator.sh`. It installs the dedicated Laravel application from `romansh/laravel-creem-store-simulator`, which mimics the subset of the Creem API used by:
 
 - `romansh/laravel-creem`
 - `romansh/laravel-creem-cli`
@@ -43,7 +43,7 @@ For demo recordings, you can also connect a dedicated Laravel host app to the si
 
 ## Start simulator in Docker
 
-Before starting the simulator, configure `CREEM_SIMULATOR_*` values in the root `.env` (preferred) for a unified environment. You can also set them in `creem-simulator/.env` as simulator-local overrides.
+Before starting the simulator, run `bash scripts/install-simulator.sh` once, then configure `CREEM_SIMULATOR_*` values in the root `.env` (preferred) for a unified environment. You can also set them in `creem-simulator/.env` as simulator-local overrides.
 If you use `ngrok`, set `CREEM_SIMULATOR_AGENT_WEBHOOK_URL` after ngrok is running; otherwise use the internal Docker URL when agent and simulator are on the same network.
 
 ```env
@@ -53,6 +53,7 @@ CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
 
 Simulator `.env` handling
+- The simulator files are installed on demand via `bash scripts/install-simulator.sh` into `./creem-simulator`.
 - For local demo and CI runs you do not need to manually create or edit `creem-simulator/.env`. The provided scripts and automation copy `creem-simulator/.env.example` to `creem-simulator/.env` when `.env` is missing and run `php artisan key:generate --force` inside the simulator container so the app has a valid `APP_KEY` for demo use.
 - For production or persistent deployments, supply `APP_KEY`, webhook URL/secret, and API keys explicitly via environment variables, Docker/Kubernetes secrets, or your secret manager.
 
@@ -67,6 +68,7 @@ If `ngrok` is already running and you want the currently supported demo flow fro
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/install-simulator.sh
 docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
  # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
  docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
@@ -86,6 +88,7 @@ If you only need the simulator itself:
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/install-simulator.sh
 docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&
@@ -98,7 +101,7 @@ docker compose -f docker-compose.frankenphp.yml up -d simulator
 
 Octane server note
 
-If your demo uses FrankenPHP + Octane, add `OCTANE_SERVER=frankenphp` to the app `.env` (and to `creem-simulator/.env` when the simulator runs Octane) before running `php artisan octane:install`:
+If your demo uses FrankenPHP + Octane, add `OCTANE_SERVER=frankenphp` to the app `.env` (and to `creem-simulator/.env` after installation, when the simulator runs Octane) before running `php artisan octane:install`:
 
 ```bash
 # add to app .env

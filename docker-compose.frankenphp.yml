@@ -8,6 +8,8 @@ services:
       - .:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
       - creem_demo_sqlite:/var/lib/creem-simulator
+      - app_octane_json_demo:/app/creem-simulator/storage/octane-state
+      - app_octane_json_demo:/app/creem-simulator/storage/logs
     environment:
       DB_CONNECTION: sqlite
       DB_DATABASE: /var/lib/creem-simulator/database.sqlite
@@ -62,6 +64,8 @@ services:
     volumes:
       - ./creem-simulator:/app
       - creem_demo_sqlite:/var/lib/creem-simulator
+      - app_octane_json_demo:/app/storage/octane-state
+      - app_octane_json_demo:/app/storage/logs
     expose:
       - "80"
     environment:
@@ -78,3 +82,5 @@ services:
 
 volumes:
   creem_demo_sqlite:
+  app_octane_json_demo:
+    driver: local

@@ -20,6 +20,7 @@ Important: the current compose file does not yet include a separate HTTP agent a
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
+	bash scripts/install-simulator.sh
  docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
   # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
  docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
@@ -58,7 +59,7 @@ CREEM_AGENT_TELEGRAM_TOKEN=...
 CREEM_AGENT_TELEGRAM_CHAT_ID=...
 ```
 
-If you also run the simulator, configure these variables in `./.env` (recommended) and/or in `creem-simulator/.env` before starting `simulator`:
+If you also run the simulator, configure these variables in `./.env` (recommended) and/or in `creem-simulator/.env` after running `bash scripts/install-simulator.sh`:
 
 ```env
 CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
