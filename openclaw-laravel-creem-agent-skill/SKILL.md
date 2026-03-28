@@ -48,4 +48,6 @@ When `CREEM_AGENT_TELEGRAM_MODE=laravel`, keep Telegram on Laravel through `/cre
 ## Operational notes
 
 - `run.sh` is the minimal stateless bridge for one-shot requests.
+- `run.sh` exits non-zero when the Laravel endpoint is unreachable or returns an HTTP error status.
+- `run.sh` safely forwards quoted and multiline prompts as JSON.
 - If the endpoint returns structured JSON, OpenClaw should treat that as the authoritative response instead of rephrasing it unless the user asks for summarization.

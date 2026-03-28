@@ -28,6 +28,11 @@ echo "status" | ~/.openclaw/workspace/skills/openclaw-laravel-creem-agent-skill/
 ~/.openclaw/workspace/skills/openclaw-laravel-creem-agent-skill/run.sh "what is the status?"
 ```
 
+Behavior notes
+
+- `run.sh` returns a non-zero exit code when the Laravel endpoint is down or responds with an HTTP error.
+- Multiline prompts and quoted text are JSON-escaped before sending.
+
 Configuration
 
 - `AGENT_URL` defaults to `http://127.0.0.1:8000/creem-agent/chat`
