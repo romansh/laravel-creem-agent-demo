@@ -5,14 +5,10 @@
   "require": {
     "php": "^8.2",
     "romansh/laravel-creem": "^1.2",
-    "romansh/laravel-creem-cli": "dev-main as 1.2",
-    "romansh/laravel-creem-agent": "dev-main as 1.2"
+    "romansh/laravel-creem-cli": "^1.2",
+    "romansh/laravel-creem-agent": "^1.2"
   },
-  "repositories": [
-    { "type": "vcs", "url": "git@github-laravel-creem-desktop:romansh/laravel-creem.git", "no-api": true },
-    { "type": "vcs", "url": "git@github-laravel-creem-cli-desktop:romansh/laravel-creem-cli.git", "no-api": true },
-    { "type": "vcs", "url": "git@github-laravel-creem-agent-desktop:romansh/laravel-creem-agent.git", "no-api": true }
-  ],
+  "repositories": [],
   "autoload": {
     "psr-4": {
       "Demo\\": "app/"
