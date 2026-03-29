@@ -172,7 +172,7 @@ CREEM_AGENT_OPENCLAW=true
 CREEM_AGENT_TELEGRAM_MODE=openclaw
 OPENCLAW_TELEGRAM_BOT_TOKEN=123:abc
 OPENCLAW_ENDPOINT=http://127.0.0.1:4110
-OPENCLAW_WORKSPACE_PATH=/home/roman/.openclaw/workspace
+OPENCLAW_WORKSPACE_PATH=$HOME/.openclaw/workspace
 OPENCLAW_SHARED_SECRET=change-me
 ```
 
@@ -198,7 +198,7 @@ In that mode Telegram should point to `/creem-agent/telegram/webhook`, not to Op
 ### Minimal verification
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 bash scripts/run-heartbeat.sh --all-stores
 ```

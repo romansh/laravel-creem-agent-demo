@@ -29,7 +29,7 @@ The source of truth for runtime configuration is now `app/.env`.
 Initialize it once:
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 cp app/.env.example app/.env
 ```
 
@@ -50,7 +50,7 @@ Fill in the values you need there:
 Use this when you want the host app to work without the simulator:
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 cp app/.env.example app/.env
 bash scripts/install-app.sh
 docker compose build app queue scheduler
@@ -62,7 +62,7 @@ docker compose up -d app queue scheduler
 Use this when you want deterministic local data and internal webhook delivery:
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 cp app/.env.example app/.env
 bash scripts/install-app.sh
 bash scripts/install-simulator.sh

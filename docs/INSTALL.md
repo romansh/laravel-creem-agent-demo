@@ -9,106 +9,81 @@
 - Optional: Telegram for notifications
 - Optional: `creem` CLI via Homebrew
 
-## Installation Modes
+### Install VirtualBox on the host (Ubuntu/Debian)
 
-This project supports two practical installation modes:
-
-Full step-by-step runbooks:
-
-- `docs/SCENARIO_1_OPENCLAW_SHORT.md` — short command sequence for OpenClaw scenario
-- `docs/SCENARIO_2_PURE_AGENT_SHORT.md` — short command sequence for pure agent scenario
-- `docs/SIMULATOR.md` — local Creem API simulator with SQLite history and internal webhook delivery
-
-Preferred runtime for the Laravel app:
-
-- `Docker + FrankenPHP + Octane` via `docker-compose.yml`
-- `php artisan serve` is fallback-only for restricted environments
-
-### Mode A: Full OpenClaw + Laravel agent
-
-- Uses `https://github.com/openclaw/openclaw-ansible`
-- Requires Debian/Ubuntu and `sudo` or root access
-- Recommended for a dedicated VPS or VM
-- Telegram should use native OpenClaw channel ownership with `CREEM_AGENT_TELEGRAM_MODE=openclaw`
-
-### Mode B: Current-user standard agent
-
-- Uses Laravel-owned Telegram via `/creem-agent/telegram/webhook`
-- Set `CREEM_AGENT_TELEGRAM_MODE=laravel`
-
-# Installation Guide (streamlined)
-
-This file gives a single, recommended path first (fastest to a working demo), with concise alternatives below.
-
-## Recommended primary flows
-
-Read the documentation as two approaches, not as one continuous setup:
-
-- Approach 1 — simulator-first. This is the supported path for the current repository and should be completed first.
-- Approach 2 — real Creem. This is the next-stage path for public webhooks, live Creem data, and optional OpenClaw on top of a dedicated Laravel host.
-
-Operationally, you can run either approach on:
-
-- Flow A — Docker on the host.
-- Flow B — Docker inside a VirtualBox VM.
-
-OpenClaw is an overlay on either path, not a replacement for the simulator-first validation.
-
-Below are concise step sequences for each primary flow.
-
-### Flow A — Docker on the host (fastest)
-
-When to fill tokens and variables: copy `app/.env.example` to `app/.env` before the init/install commands below and do a one-time setup of the values you plan to use. Put real tokens, Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file. Also set `NGROK_URL` in `app/.env` to the public ngrok URL you will use for webhooks (for example `NGROK_URL=https://abcd1234.ngrok.app`).
-
-Use `app/.env` as the single source of truth for the demo app. Initialize it with `cp app/.env.example app/.env` before running the install scripts.
-
-Simulator `.env` handling for demo runs
-- The simulator is no longer checked into this repository. Install it into `./simulator` with `bash scripts/install-simulator.sh` before Docker builds or smoke runs.
-- After installation, you do not need to manually create or edit `simulator/.env` during local demo or smoke runs. `bash scripts/install-simulator.sh` syncs the relevant values from `app/.env`, including `APP_KEY`.
-- If you want one logical `.env` for both apps, edit only `app/.env` and treat `simulator/.env` as a generated mirror for simulator runtime needs.
-- To rotate the shared Laravel application key, run `bash scripts/regenerate-app-key.sh`. It regenerates `APP_KEY` in `app/.env` and then syncs the same key into `simulator/.env`.
-- This automatic copy-and-generate behavior is intended only for local/demo/CI use. For production or long-running environments, provide explicit secrets (`APP_KEY`, webhook URL/secret, API keys) via environment variables, Docker secrets, or your orchestration platform. Do not commit real secrets to the repository.
-
-If you plan to use multiple Creem stores (multi-store demo), add the secondary store variables to `app/.env` during that same setup step and then verify that the published `config/creem.php` maps those variables to the `secondary` profile. Look for `CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, and `CREEM_SECONDARY_API_URL` in `app/.env.example`.
-
-Using a fixed ngrok URL from `.env`:
+If you need VirtualBox on the host, install it with your package manager and add a shared folder that points at this demo repository (or clone the repo inside the VM). Example commands below assume you will share only the demo repository into the guest.
 
 ```bash
-# Load variables from the demo app env (if present)
-set -o allexport; test -f app/.env && source app/.env || true; set +o allexport
-
-# Fail fast if NGROK_URL is not configured
-test -n "${NGROK_URL:-}" || { echo "NGROK_URL not set in app/.env; set NGROK_URL=https://your-id.ngrok.app"; false; }
-echo "Using public URL: $NGROK_URL"
+sudo apt update
+sudo apt install -y virtualbox
+VBoxManage sharedfolder add "VM-name" --name demo_repo --hostpath /path/to/laravel-creem-agent-demo --automount
 ```
 
-### Laravel AI / LLM configuration
-The demo `.env.example` already includes the full Laravel AI block. Configure the agent-facing provider and model in `.env` like this:
+Then configure NAT port forwards as needed:
 
-```env
-CREEM_AGENT_LLM_ENABLED=true
-CREEM_AGENT_LLM_PROVIDER=openai
-CREEM_AGENT_LLM_MODEL=gpt-4o-mini
-#CREEM_AGENT_LLM_PROVIDER=gemini
-#CREEM_AGENT_LLM_MODEL=gemini-2.5-flash-lite
-CREEM_AGENT_LLM_TIMEOUT=30
-CREEM_AGENT_LLM_FALLBACK_TO_RULES=true
-
-OPENAI_API_KEY=sk-...
-OPENAI_URL=https://api.openai.com/v1
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
-OPENROUTER_API_KEY=
-OLLAMA_API_KEY=
-OLLAMA_BASE_URL=http://localhost:11434
+```bash
+VBoxManage modifyvm "VM-name" --natpf1 "ssh,tcp,,2222,,22"
+VBoxManage modifyvm "VM-name" --natpf1 "http8000,tcp,,8000,,8000"
 ```
 
-Switch providers by changing `CREEM_AGENT_LLM_PROVIDER`; switch models by changing `CREEM_AGENT_LLM_MODEL`. The example file keeps Gemini lines commented out so you can quickly switch the agent to `gemini-2.5-flash-lite` without rewriting the section. If you want to customize Laravel AI's provider registry itself, publish `config/ai.php` with `php artisan vendor:publish --tag=ai-config`.
+Guest (Ubuntu Server inside VM) — essential steps:
 
-What `app/.env.example` covers
-- Core Laravel runtime: `APP_*`, locale, mail, queue, cache, session, and `OCTANE_SERVER`.
-- Database: SQLite by default via `DB_CONNECTION=sqlite` and `DB_DATABASE=database/database.sqlite`.
-- Notification channels: Telegram, Slack, and Discord webhook variables.
+1. Install build tools / headers (needed if you use the Guest Additions ISO):
+
+```bash
+sudo apt update
+sudo apt install -y build-essential dkms linux-headers-$(uname -r)
+```
+
+2. Preferred: install distro guest packages (simpler):
+
+```bash
+sudo apt install -y virtualbox-guest-dkms virtualbox-guest-utils
+```
+
+If you prefer the Oracle Guest Additions ISO, insert it from the VirtualBox menu (Devices → Insert Guest Additions CD image...), then run:
+
+```bash
+sudo mkdir -p /mnt/cdrom
+sudo mount /dev/cdrom /mnt/cdrom || true
+sudo sh /mnt/cdrom/VBoxLinuxAdditions.run || true
+```
+
+3. Create the mount point and add your user to the `vboxsf` group:
+
+```bash
+sudo mkdir -p /home/www/laravel-creem-agent-demo
+sudo usermod -aG vboxsf $USER
+# Log out and back in (or reboot) to apply group membership
+```
+
+4. Mount the shared folder manually (replace UID/GID if needed):
+
+```bash
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www/laravel-creem-agent-demo
+```
+
+### Install Docker inside the guest (Ubuntu)
+
+Install Docker and Docker Compose plugin inside the VM so the demo runs fully in the guest:
+
+```bash
+# prerequisites
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" |
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+```
+
+After adding your user to `docker` and `vboxsf`, log out and back in (or reboot) to apply group membership.
+
+5. Optional: make the mount permanent by adding an `/etc/fstab` entry for `demo_repo` if desired. If you need multiple package checkouts for maintainer tests, clone those repos inside the guest (for example under `/home/www`) and point `CREEM_AGENT_PACKAGE_REPO` at the local path when running smoke scripts.
 - Optional OpenClaw integration: `CREEM_AGENT_OPENCLAW`, `OPENCLAW_ENDPOINT`, `OPENCLAW_WORKSPACE_PATH`, `OPENCLAW_SHARED_SECRET`.
 - LLM routing and provider credentials: the `CREEM_AGENT_LLM_*` block plus API keys for OpenAI, Anthropic, Gemini, OpenRouter, and Ollama.
 - Creem primary and secondary store credentials: `CREEM_API_*`, `CREEM_WEBHOOK_SECRET`, and `CREEM_SECONDARY_*`.
@@ -142,7 +117,7 @@ CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 From the host shell:
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/install-app.sh
 bash scripts/install-simulator.sh
 docker compose build app queue scheduler simulator
@@ -173,7 +148,7 @@ Start services and run the supported verification flow:
 - Package-level Telegram send/receive verification from `laravel-creem-agent` is maintainer-only and requires a separate source checkout. End users should not assume that checkout exists inside a VM or shared folder.
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 bash scripts/run-heartbeat.sh --all-stores
 bash scripts/run-heartbeat.sh --force --all-stores
@@ -192,7 +167,7 @@ php vendor/bin/pest \
 Optional: re-run the integrated webhook smoke
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 ```
 
@@ -244,7 +219,7 @@ The machine or container user running Composer must have read access to these re
 
 In the VM the timing is the same as on the host: copy `app/.env.example` to `app/.env`, fill it once with the values you need, then run initialization. The `ngrok` service can start later when you need a public HTTPS callback URL, but its token should already be present in the same file.
 
-Summary: provision a VM, mount the host repo into the guest (for example at `/home/www`), then run the Docker-based setup inside the VM. This keeps host clean and simulates a small VPS.
+Summary: provision a VM, mount or clone this demo repository into the guest (for example at `/home/www/laravel-creem-agent-demo`), then run the Docker-based setup inside the VM. This keeps the host clean and simulates a small VPS.
 
 Common VM bootstrap (guest):
 
@@ -255,7 +230,7 @@ sudo usermod -aG docker $USER
 # log out and back in or reboot
 ```
 
-Mount the host repo into the VM (see Appendix), then inside the guest:
+Mount or clone this demo repository into the VM (see Appendix), then inside the guest:
 
 ```bash
 cd /home/www/laravel-creem-agent-demo
@@ -301,7 +276,7 @@ In B2, keep Telegram on Laravel with `CREEM_AGENT_TELEGRAM_MODE=laravel`, but no
 If Docker isn't available on your host, use the current-user path below. It's slightly more manual but works on most Linux systems.
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 ```
 
@@ -309,24 +284,26 @@ Notes: the demo repository root is not a standalone Laravel app with `artisan`, 
 
 ## Optional: VirtualBox (shared folder + Guest Additions)
 
-If you prefer an isolated VM, use VirtualBox. The recommended setup is to run the demo inside the VM and share your host repository via a shared folder mounted inside the guest (for example at `/hove/www`).
+If you prefer an isolated VM, use VirtualBox. Recommended: mount or clone only this demo repository into the guest — do not expose the host's entire parent folder. Mounting only the current repository reduces permission issues and avoids leaking unrelated host files into the VM.
 
 Short steps (details in the Appendix below):
 
-- Create a shared folder on the host (e.g. host `/home/roman/php/run`, name `repo_run`) via VirtualBox GUI or `VBoxManage`.
-- In the guest install guest additions or the distro guest packages and mount the shared folder, then either symlink or mount it at `/hove/www`.
+- Preferred: mount or clone this repository into the guest (for example at `/home/www/laravel-creem-agent-demo`) and operate from there.
 
-Example mount (guest):
+Example (host):
 
 ```bash
-sudo apt update
-sudo apt install -y virtualbox-guest-dkms virtualbox-guest-utils
-sudo mkdir -p /hove/www
-sudo usermod -aG vboxsf $USER
-sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /hove/www
+VBoxManage sharedfolder add "VM-name" --name demo_repo --hostpath /path/to/laravel-creem-agent-demo --automount
 ```
 
-After that, create per-package folders under `/hove/www` (e.g. `laravel-creem`, `laravel-creem-cli`, `laravel-creem-agent`) and operate from the guest.
+Example (guest):
+
+```bash
+sudo mkdir -p /home/www/laravel-creem-agent-demo
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www/laravel-creem-agent-demo
+```
+
+- Optional (maintainer-only): if you need multiple sibling package checkouts for package-level tests, clone those repositories inside the guest (for example under `/home/www`) and point `CREEM_AGENT_PACKAGE_REPO` at the local path when running the smoke scripts. This is purely optional and intended for maintainers.
 
 ## Quick verification checklist
 
@@ -337,13 +314,13 @@ After that, create per-package folders under `/hove/www` (e.g. `laravel-creem`, 
 
 ## Appendix: VirtualBox Guest Additions & Shared Folder (detailed)
 
-To make the repo files available inside the guest at `/hove/www` (so each package can be a separate folder there), add a VirtualBox shared folder on the host and mount it manually in the guest. Steps below assume the host folder with repositories is `/home/roman/php/run` and the shared-folder name will be `repo_run`.
+If you use VirtualBox, prefer mounting or cloning only this demo repository into the guest rather than exposing the host's entire parent folder. The examples below assume you will share the demo repo into the guest at `/home/www/laravel-creem-agent-demo`.
 
 Host (VirtualBox Manager):
 
 - Open VirtualBox, select the VM → Settings → Shared Folders → Add New Shared Folder.
-- Set "Folder Path" to `/home/roman/php/run` and "Folder Name" to `repo_run`.
-- (Optional) Check "Make Permanent". Do NOT check "Auto-mount" if you want to control the mount point (`/hove/www`) in the guest.
+- Set "Folder Path" to the path of this repository on your host and "Folder Name" to a short name such as `demo_repo`.
+- (Optional) Check "Make Permanent". Do NOT check "Auto-mount" if you want to control the mount point in the guest.
 
 ### Install VirtualBox on the host (Ubuntu/Debian)
 
@@ -357,8 +334,8 @@ sudo apt install -y virtualbox
 Then create the shared folder and NAT port forwards (replace "VM-name"):
 
 ```bash
-# shared folder
-VBoxManage sharedfolder add "VM-name" --name repo_run --hostpath /home/roman/php/run --automount
+# shared folder (share this demo repository only)
+VBoxManage sharedfolder add "VM-name" --name demo_repo --hostpath /path/to/laravel-creem-agent-demo --automount
 # port forwards: host->guest
 VBoxManage modifyvm "VM-name" --natpf1 "ssh,tcp,,2222,,22"
 VBoxManage modifyvm "VM-name" --natpf1 "http8000,tcp,,8000,,8000"
@@ -444,13 +421,14 @@ lsmod | grep vboxsf || sudo modprobe vboxsf
 systemctl status vboxservice || true
 ```
 
-Notes:
-- After mounting, the host's `/home/roman/php/run` will appear in the guest at `/hove/www` — create separate subfolders there for each package and install/clone packages into those directories.
+- Notes:
+- If you mounted the demo repo, it will be available inside the guest at the mount point you chose (for example `/home/www/laravel-creem-agent-demo`).
+- If you need multiple package checkouts for maintainer tests, clone those repositories inside the guest and point `CREEM_AGENT_PACKAGE_REPO` at the local path when running smoke scripts.
 - If you used the Guest Additions ISO, a reboot may be required.
 - If permissions look incorrect, verify `uid`/`gid` options in the mount command or `/etc/fstab`.
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 
 CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
@@ -463,14 +441,14 @@ If the host does not provide `sudo`, do not try to force `openclaw-ansible`. Ups
 Preferred current-user path if Docker is already available to your user:
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 ```
 
 Fallback current-user flow if Docker is unavailable:
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 composer install
 cp app/.env.example app/.env
 php artisan key:generate

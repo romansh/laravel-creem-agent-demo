@@ -68,7 +68,7 @@ CREEM_SIMULATOR_AGENT_WEBHOOK_URL=https://YOUR-NGROK-URL/creem/webhook
 If `ngrok` is already running and you want the currently supported demo flow from that point, use:
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/install-simulator.sh
 docker compose build app queue scheduler simulator
  # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
@@ -88,7 +88,7 @@ Important: `app`, `queue`, and `scheduler` now run the dedicated host runtime fr
 If you only need the simulator itself:
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/install-simulator.sh
 docker compose run --rm simulator sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&

@@ -19,10 +19,10 @@ Use this as the default execution order:
 Important: the current compose file runs the dedicated host runtime from `app/`, and `simulator/` remains optional. Heartbeat is available directly through `bash scripts/run-heartbeat.sh`.
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
-	cp app/.env.example app/.env
-	bash scripts/install-app.sh
-	bash scripts/install-simulator.sh
+cd $HOME/php/run/laravel-creem-agent-demo
+cp app/.env.example app/.env
+bash scripts/install-app.sh
+bash scripts/install-simulator.sh
  docker compose build app queue scheduler simulator
   # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
  docker compose run --rm app sh -lc '
@@ -134,7 +134,7 @@ curl -s -X POST "https://api.telegram.org/bot${CREEM_AGENT_TELEGRAM_TOKEN}/setWe
 ## Verify simulator-first approach
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 ```
 
@@ -182,24 +182,28 @@ Once the smoke runner and package tests pass, continue with the real-Creem secti
 ## Fallback if Docker is unavailable
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 ```
 
 ## Guest Additions & Shared Folder (optional)
 
-To make the host repo available inside the VM at `/home/www`, add a VirtualBox shared folder (e.g. name `repo_run` pointing to `/home/roman/php/run`) and mount it in the guest:
+If you need a VM, prefer mounting or cloning only this demo repository into the guest (for example at `/home/www/laravel-creem-agent-demo`). Mounting the entire host parent folder is not required and is discouraged.
+
+Example (host):
 
 ```bash
-# inside guest
-sudo apt update
-sudo apt install -y virtualbox-guest-dkms virtualbox-guest-utils
-sudo mkdir -p /home/www
-sudo usermod -aG vboxsf $USER
-sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /home/www
+VBoxManage sharedfolder add "VM-name" --name demo_repo --hostpath /path/to/laravel-creem-agent-demo --automount
 ```
 
-Then create per-package subfolders under `/home/www` and install/clone packages there.
+Example (guest):
+
+```bash
+sudo mkdir -p /home/www/laravel-creem-agent-demo
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www/laravel-creem-agent-demo
+```
+
+If you are a maintainer and need multiple sibling package checkouts for tests, clone those repositories inside the guest (for example under `/home/www`) and point `CREEM_AGENT_PACKAGE_REPO` at the local path when running smoke scripts.
 
 If these packages are private, use SSH agent forwarding so the key remains on the host:
 

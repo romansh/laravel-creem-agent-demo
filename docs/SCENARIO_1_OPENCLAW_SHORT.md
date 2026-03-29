@@ -46,11 +46,11 @@ openclaw status
 Important: the current compose file runs the dedicated host runtime from `app/`, and `simulator/` remains optional. Heartbeat is available directly through `bash scripts/run-heartbeat.sh`.
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
-	cp app/.env.example app/.env
-	bash scripts/install-app.sh
-	bash scripts/install-simulator.sh
-	docker compose build app queue scheduler simulator
+cd $HOME/php/run/laravel-creem-agent-demo
+cp app/.env.example app/.env
+bash scripts/install-app.sh
+bash scripts/install-simulator.sh
+docker compose build app queue scheduler simulator
 	# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
 	docker compose run --rm app sh -lc '
 	git config --global --add safe.directory /app && composer install --no-interaction &&
@@ -151,7 +151,7 @@ The same `app/.env` file can be loaded into your shell before running compose if
 ## Verify simulator-first approach
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/smoke-simulator-demo.sh
 
 CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
@@ -173,7 +173,7 @@ Schedule::command('creem-agent:heartbeat --all-stores')
 Before asking for status or payment issues through Telegram or OpenClaw, create fresh simulator changes:
 
 ```bash
-cd /home/roman/php/run/laravel-creem-agent-demo
+cd $HOME/php/run/laravel-creem-agent-demo
 docker compose exec simulator \
 	php artisan simulator:advance --sales=3 --new-customers=2 --past-due=2 --cancellations=1 --send-webhooks
 docker compose exec simulator \
@@ -189,44 +189,19 @@ After the commands above are green, continue with the real-Creem sections in `FL
 
 ## Guest Additions & Shared Folder (optional)
 
-If you want the host repo available inside the VM at `/home/www`, add a VirtualBox shared folder named `repo_run` (pointing to host `/home/roman/php/run`) and mount it in the guest:
+If you prefer a VM, mount or clone only this demo repository into the guest (for example at `/home/www/laravel-creem-agent-demo`). Mounting the host's entire parent folder is unnecessary and discouraged.
+
+Example (host):
 
 ```bash
-# inside guest
-sudo apt update
-sudo apt install -y virtualbox-guest-dkms virtualbox-guest-utils
-sudo mkdir -p /home/www
-sudo usermod -aG vboxsf $USER
-sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /home/www
+VBoxManage sharedfolder add "VM-name" --name demo_repo --hostpath /path/to/laravel-creem-agent-demo --automount
 ```
 
-Make the mount permanent (optional) — append a line to `/etc/fstab` using `tee` (replace `1000`/`1000` with your `id -u`/`id -g`):
+Example (guest):
 
 ```bash
-echo 'repo_run /home/www vboxsf uid=1000,gid=1000,auto 0 0' | sudo tee -a /etc/fstab
+sudo mkdir -p /home/www/laravel-creem-agent-demo
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www/laravel-creem-agent-demo
 ```
 
-Test without reboot:
-
-```bash
-sudo mount -a
-mount | grep vboxsf
-ls -la /home/www
-lsmod | grep vboxsf || sudo modprobe vboxsf
-```
-
-Create subfolders under `/home/www` for each package (e.g. `laravel-creem`, `laravel-creem-cli`, `laravel-creem-agent`) and operate on them from the guest.
-
-If these packages are private, use SSH agent forwarding so your private key stays on the host:
-
-```bash
-# On host:
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_rsa
-ssh -A user@vm_ip
-
-# Inside VM:
-ssh git@github.com
-```
-
-This requires SSH login to the VM (`ssh -A`), it does not work via the VirtualBox GUI.
+If you are a maintainer and need multiple sibling checkouts for package tests, clone those repositories inside the guest under `/home/www` and point `CREEM_AGENT_PACKAGE_REPO` at the local path when running smoke scripts. For private repositories, SSH agent forwarding (`ssh -A`) from host to VM is supported when you SSH into the VM.
