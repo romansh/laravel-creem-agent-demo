@@ -43,7 +43,7 @@ openclaw status
 
 ## App init
 
-Important: the current compose file uses the generated `creem-simulator` app as the shared Laravel runtime. The demo installer now adds `laravel-creem-agent` into that app, so heartbeat is available directly through `bash scripts/run-heartbeat.sh`.
+Important: the current compose file runs the dedicated host runtime from `app/`, and `simulator/` remains optional. Heartbeat is available directly through `bash scripts/run-heartbeat.sh`.
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
@@ -53,7 +53,7 @@ cd /home/roman/php/run/laravel-creem-agent-demo
 	docker compose run --rm simulator sh -lc '
 	git config --global --add safe.directory /app && composer install --no-interaction &&
 	test -f .env || cp .env.example .env &&
-	sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
+	sqlite_db="${DB_DATABASE:-/var/lib/simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
 	php artisan key:generate &&
 	php artisan migrate --seed &&
 	php artisan octane:install --server=frankenphp --no-interaction
@@ -65,7 +65,7 @@ bash scripts/run-heartbeat.sh --all-stores
 CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh
 ```
 
-Copy `.env.example` to `.env` before initialization and do a one-time setup of the values you plan to use. Put OpenClaw options, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file, even if you will start the `ngrok` container only later when public webhook delivery is needed.
+Copy `app/.env.example` to `app/.env` before initialization and do a one-time setup of the values you plan to use. Put OpenClaw options, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file, even if you will start the `ngrok` container only later when public webhook delivery is needed.
 
 ## `.env`
 
@@ -86,7 +86,7 @@ OPENCLAW_WORKSPACE_PATH=/home/openclaw/.openclaw/workspace
 OPENCLAW_SHARED_SECRET=change-me
 ```
 
-If you also run the simulator, configure these variables in `./.env` (preferred) and/or in `creem-simulator/.env` after running `bash scripts/install-simulator.sh`:
+If you also run the simulator, configure these variables in `app/.env`. `bash scripts/install-simulator.sh` will sync them into `simulator/.env`:
 
 ```env
 CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
@@ -94,7 +94,7 @@ CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
 CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
 
-Docker Compose maps these root values into the `simulator` service from `docker-compose.yml`.
+Docker Compose reads the host runtime from `app/.env` and the simulator runtime from `simulator/.env`.
 
 ## OpenClaw Telegram channel
 
@@ -118,11 +118,11 @@ Only do this when you need public webhook delivery from Creem or Telegram. We ex
 
 ```bash
 # Start ngrok container (it still needs the auth token in .env)
-docker compose --env-file .env up -d ngrok
+docker compose --env-file app/.env up -d ngrok
 
 # Load .env and fail fast if NGROK_URL is not configured
-set -o allexport; test -f .env && source .env || true; set +o allexport
-test -n "${NGROK_URL:-}" || { echo "NGROK_URL not set in .env; set NGROK_URL=https://your-id.ngrok.app"; false; }
+set -o allexport; test -f app/.env && source app/.env || true; set +o allexport
+test -n "${NGROK_URL:-}" || { echo "NGROK_URL not set in app/.env; set NGROK_URL=https://your-id.ngrok.app"; false; }
 echo "Using public URL: $NGROK_URL"
 ```
 
@@ -132,11 +132,11 @@ Creem webhook URL (use the `NGROK_URL` value from your `.env`):
 ${NGROK_URL}/creem/webhook
 ```
 
-If `NGROK_URL` is empty or the ngrok logs show `ERR_NGROK_105`, set a valid `NGROK_AUTHTOKEN` and `NGROK_URL` in `.env` and re-run the steps above.
+If `NGROK_URL` is empty or the ngrok logs show `ERR_NGROK_105`, set a valid `NGROK_AUTHTOKEN` and `NGROK_URL` in `app/.env` and re-run the steps above.
 
 After you get `YOUR-NGROK-URL`, use it anywhere a public callback is required, especially the Creem webhook endpoint.
 
-The same `.env` file can be loaded into your shell before running compose if you prefer not to pass `--env-file` explicitly.
+The same `app/.env` file can be loaded into your shell before running compose if you prefer not to pass `--env-file` explicitly.
 
 ## Verify simulator-first approach
 

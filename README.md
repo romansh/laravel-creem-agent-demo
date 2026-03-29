@@ -1,191 +1,125 @@
-
 # Laravel Creem Agent Demo
 
-This demo package for `laravel-creem-agent` contains configuration, prompts, and scenarios to run and test agent workflows locally.
+This repository now uses a clear two-runtime layout:
+
+- `app/` — generated Laravel host application that runs `laravel-creem`, `laravel-creem-cli`, and `laravel-creem-agent`
+- `simulator/` — generated Laravel Creem API simulator used only when you want deterministic local testing
+
+The demo app is expected to work without the simulator. If `app/.env` points to a real Creem API, only the `app`, `queue`, and `scheduler` services are required.
 
 ## Repository contents
-- `docker/` — Dockerfile and related artifacts (frankenphp, etc.).
-- `docker-compose.yml` — example Docker Compose file for running the demo services, including optional `ngrok` tunneling.
-- `scripts/install-simulator.sh` — installs `romansh/laravel-creem-store-simulator` into `./creem-simulator` when the simulator app is needed.
-- `docs/` — user-facing setup guides and short scenarios.
-- `.resources/` — internal recording runbooks, full demo scenarios, and planning materials.
+
+- `app/.env.example` — tracked template for the host app environment
+- `docker-compose.yml` — Docker Compose topology for `app`, `queue`, `scheduler`, optional `simulator`, and optional `ngrok`
+- `scripts/install-app.sh` — creates or refreshes the generated Laravel host app in `./app`
+- `scripts/install-simulator.sh` — creates or refreshes the generated simulator in `./simulator`
+- `docs/` — user-facing setup guides and short scenarios
+- `.resources/` — internal runbooks and recording flow documents
 
 ## Requirements
-- Docker and Docker Compose (recommended) for quick containerized setup.
-- Locally: PHP 8.1+, Composer if you prefer to run parts of the demo natively.
-- `NGROK_AUTHTOKEN` if you want to receive real Creem or Telegram webhooks through the bundled `ngrok` container.
 
-Note about Octane server
+- Docker and Docker Compose for the supported runtime path
+- PHP 8.2+ and Composer if you want to generate runtimes locally before using Docker
+- `NGROK_AUTHTOKEN` only when you need a public tunnel
 
-If you use FrankenPHP / Laravel Octane in the demo, set the Octane server in the app `.env`:
+## Environment layout
+
+The source of truth for runtime configuration is now `app/.env`.
+
+Initialize it once:
 
 ```bash
-# in the demo project root
-printf "\nOCTANE_SERVER=frankenphp\n" >> .env
+cd /home/roman/php/run/laravel-creem-agent-demo
+cp app/.env.example app/.env
 ```
 
-This ensures `php artisan octane:install --server=frankenphp` and runtime expectations match the demo containers.
+Fill in the values you need there:
 
-## Quick start (Docker)
-Before you start: copy `.env.example` to `.env` and do a one-time setup of the values you plan to use, including API keys, Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN`. The `ngrok` container itself can be started later when public webhook delivery is needed, but its token should live in the same `.env` alongside the rest of the configuration.
+- Creem API credentials
+- Telegram settings
+- optional OpenClaw settings
+- optional `NGROK_AUTHTOKEN` and `NGROK_URL`
+- LLM provider keys
 
-Recommended demo order:
+`scripts/install-simulator.sh` syncs the simulator-facing Creem and LLM settings from `app/.env` into `simulator/.env` when the simulator is installed.
 
-1. run `bash scripts/smoke-simulator-demo.sh` to bootstrap the simulator-backed stack and verify the demo path end-to-end
-2. run `bash scripts/run-heartbeat.sh --all-stores` to create the baseline heartbeat directly from the checked-in demo stack
-3. add new simulator sales and failures with `simulator:advance` and `simulator:send-webhook payment.failed`
-4. run `bash scripts/run-heartbeat.sh --force --all-stores` so the heartbeat shows the delta without waiting for the next cadence window
+## Quick start
 
-For demo cadence, do not look for a dedicated `.env` switch. Use `everyMinute()` in the Laravel scheduler definition; the Docker `scheduler` loop already runs `schedule:run` every 60 seconds.
+### App only
 
-If you run multiple Creem stores (multi-store demo), set the secondary store env vars (`CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, `CREEM_SECONDARY_API_URL`) in that same `.env` setup step, then verify that the published `config/creem.php` maps them to the `secondary` profile.
-
-If you are starting from the point where `ngrok` is already up, continue with these commands:
+Use this when you want the host app to work without the simulator:
 
 ```bash
-cd laravel-creem-agent-demo
+cd /home/roman/php/run/laravel-creem-agent-demo
+cp app/.env.example app/.env
+bash scripts/install-app.sh
+docker compose build app queue scheduler
+docker compose up -d app queue scheduler
+```
+
+### App + simulator
+
+Use this when you want deterministic local data and internal webhook delivery:
+
+```bash
+cd /home/roman/php/run/laravel-creem-agent-demo
+cp app/.env.example app/.env
+bash scripts/install-app.sh
 bash scripts/install-simulator.sh
 docker compose build app queue scheduler simulator
-	# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
-	docker compose run --rm simulator sh -lc '
-	git config --global --add safe.directory /app && composer install --no-interaction &&
-	test -f .env || cp .env.example .env &&
-	sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
-	php artisan key:generate &&
-	php artisan migrate --seed &&
-	php artisan octane:install --server=frankenphp --no-interaction
-'
-	docker compose run --rm app sh -lc '
-	git config --global --add safe.directory /app && composer install --no-interaction &&
-	test -f .env || cp .env.example .env &&
-	sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
-	php artisan key:generate &&
-	php artisan vendor:publish --tag=creem-config --force &&
-	php artisan vendor:publish --tag=creem-cli-config --force &&
-	php artisan vendor:publish --tag=creem-agent-config --force &&
-	php artisan vendor:publish --tag=creem-agent-migrations --force &&
-	php artisan migrate &&
-	php artisan octane:install --server=frankenphp --no-interaction
-'
 docker compose up -d app queue scheduler simulator
 bash scripts/smoke-simulator-demo.sh
 ```
 
-After that, read the current public tunnel URL from the `ngrok` inspector and use it for Creem or Telegram webhooks.
-
-The checked-in demo now installs `romansh/laravel-creem`, `romansh/laravel-creem-cli`, and `romansh/laravel-creem-agent` into the generated `creem-simulator` app. Heartbeat is available directly in the demo stack through `bash scripts/run-heartbeat.sh` or `docker compose exec app php artisan creem-agent:heartbeat`. The wrapper auto-detects whether the current env points at `http://simulator/...` or at a real Creem API URL, so it works for both simulator-backed demos and real-store/OpenClaw setups.
-
-## Public webhook tunnel with Docker
-
-When you need a public HTTPS URL for real Creem or Telegram webhooks, run the bundled `ngrok` service instead of installing `ngrok` on the host:
-
-```bash
-docker compose --env-file .env up -d ngrok
-# Read the public URL from the ngrok container logs; the inspector is not published by default.
-```
-
-Alternatively, load `.env` into your shell for the current session (bash/zsh):
-
-```bash
-set -o allexport; source .env; set +o allexport
-docker compose up -d ngrok
-```
-
-Use the returned HTTPS URL as the base for:
-
-- `https://YOUR-NGROK-URL/creem/webhook`
-- `https://YOUR-NGROK-URL/creem-agent/telegram/webhook`
-
-Once `ngrok` is already running, initialize and start the rest of the stack with the commands from the quick start block above.
-
-## Publish package configs
-
-The installer already syncs the demo-specific `creem-agent` configuration into `creem-simulator/config/creem-agent.php` and copies the package migration used for agent logs. If you need to re-run the package setup manually inside the app container, use:
-
-```bash
-php artisan vendor:publish --provider="Romansh\LaravelCreemAgent\CreemAgentServiceProvider" --tag=creem-agent-migrations
-php artisan migrate
-```
-
-Example `config/creem.php` snippet you should verify (profile → api_key mapping):
-
-```php
-'profiles' => [
-	'default' => [
-		'api_key' => env('CREEM_API_KEY'),
-		'test_mode' => env('CREEM_TEST_MODE', true),
-	],
-],
-```
-
-And in your `.env` set the API key used by that profile:
-
-```env
-CREEM_API_KEY=creem_test_...
-```
-
-## Running locally (without Docker)
-1. If you want to run parts of the demo on your machine:
-
-```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate --seed
-php artisan serve
-```
-
-Note: Several demo scripts assume the frankenphp container environment; local execution may require additional configuration.
-
-## Scenarios and prompts
-Review the scenario documents:
-- `docs/SCENARIO_*.md` — user-facing short scenario walkthroughs.
-
-Use these files as input for manual testing or when wiring the demo into a test environment.
-
-If you want deterministic local testing without waiting for real payments or public webhooks, install the simulator with `bash scripts/install-simulator.sh` and then follow `docs/SIMULATOR.md`.
-
-If you want a direct demo heartbeat command, use:
+Run heartbeat directly in the host app:
 
 ```bash
 bash scripts/run-heartbeat.sh --all-stores
 bash scripts/run-heartbeat.sh --force --all-stores
 ```
 
-If you want simulator-backed Telegram interaction with scheduled heartbeats, use:
+## ngrok
 
-```php
-use Illuminate\Support\Facades\Schedule;
-
-Schedule::command('creem-agent:heartbeat --all-stores')
-	->everyMinute()
-	->runInBackground()
-	->withoutOverlapping();
-```
-
-That interactive Telegram stage is separate from the checked-in demo compose topology.
-
-
-
-## Useful commands
-- Build and start containers: `docker compose up --build`
-- Stop containers: `docker compose down`
-- Follow logs: `docker compose logs -f`
-- Start bundled ngrok: `docker compose --env-file .env up -d ngrok`
-<!-- ngrok web UI is not published by default in this configuration -->
-
-The compose file uses normal Docker `ports:` publishing. Start the stack with:
+When you need public webhook delivery, keep the token and URL in `app/.env` and start `ngrok` with:
 
 ```bash
-docker compose up -d --build
+docker compose --env-file app/.env up -d ngrok
 ```
 
-## Troubleshooting & tips
- - If the agent is unresponsive, check container logs and environment variable configuration.
- - For repeatable tests, use the scenario files in `docs/`.
+Or load the same env into your shell:
 
-## Contributing
-Contributions are welcome. Please open a pull request describing your changes and include a short reproduction or test scenario.
+```bash
+set -o allexport; source app/.env; set +o allexport
+docker compose up -d ngrok
+```
 
----
-For authoring and support, see the main `laravel-creem-agent` repository for full documentation and requirements.
+Use the resulting public base URL for:
+
+- `https://YOUR-NGROK-URL/creem/webhook`
+- `https://YOUR-NGROK-URL/creem-agent/telegram/webhook`
+
+## Useful commands
+
+- Build services: `docker compose build app queue scheduler simulator`
+- Start app only: `docker compose up -d app queue scheduler`
+- Start full stack: `docker compose up -d app queue scheduler simulator`
+- Follow logs: `docker compose logs -f app`
+- Run heartbeat: `bash scripts/run-heartbeat.sh --all-stores`
+- Run simulator smoke flow: `bash scripts/smoke-simulator-demo.sh`
+
+## Notes
+
+- The host Laravel runtime lives in `app/`, not in the repository root.
+- The simulator is optional and isolated in `simulator/`.
+- `docker-compose.yml` mounts separate SQLite volumes for the app and the simulator.
+- The scheduler cadence is still controlled by Laravel scheduling code, not by `.env`.
+
+## Scenarios
+
+See the short scenario files in `docs/`:
+
+- `docs/SCENARIO_1_OPENCLAW_SHORT.md`
+- `docs/SCENARIO_2_PURE_AGENT_SHORT.md`
+- `docs/SIMULATOR.md`
+
+For authoring and support, see the main `laravel-creem-agent` repository.

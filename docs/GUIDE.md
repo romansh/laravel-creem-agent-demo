@@ -11,7 +11,7 @@ For this repository, the practical reading order is:
 1. Start with the simulator-first approach to validate heartbeat logic, webhook delivery, and Telegram behavior deterministically.
 2. Then move to the real Creem approach for live keys, ngrok callbacks, and optional OpenClaw attachment.
 
-That split matters because the checked-in demo compose topology is still simulator-centered.
+That split matters because the repository now has a dedicated host app runtime in `app/` and an optional simulator runtime in `simulator/`.
 
 ## The Architecture
 
@@ -96,7 +96,7 @@ This works through both a CLI command (`creem-agent:chat`) and an HTTP endpoint 
 
 LLM configuration
 
-The demo app exposes agent-side LLM routing through the `.env` file. In the current `.env.example`, the default configuration is `CREEM_AGENT_LLM_PROVIDER=openai` with `CREEM_AGENT_LLM_MODEL=gpt-4o-mini`, and the Gemini alternative is shown as commented lines right below it. Provider credentials are listed in the same file for OpenAI, Anthropic, Gemini, OpenRouter, and Ollama, plus `OPENAI_URL` and `OLLAMA_BASE_URL` for custom endpoints.
+The demo app exposes agent-side LLM routing through `app/.env`. In `app/.env.example`, the default configuration is `CREEM_AGENT_LLM_PROVIDER=openai` with `CREEM_AGENT_LLM_MODEL=gpt-4o-mini`, and the Gemini alternative is shown as commented lines right below it. Provider credentials are listed in the same file for OpenAI, Anthropic, Gemini, OpenRouter, and Ollama, plus `OPENAI_URL` and `OLLAMA_BASE_URL` for custom endpoints.
 
 ## Running as a Daemon
 
@@ -135,7 +135,7 @@ Treat it as the bridge between the two approaches:
 - simulator-first for supported local verification
 - real Creem for public callback verification once the dedicated agent host exists
 
-Current repository caveat: the compose file in this repository uses the generated `creem-simulator` app as the shared Laravel runtime. The demo installer adds `laravel-creem-agent` into that app, so heartbeat is runnable directly through `bash scripts/run-heartbeat.sh`. The broader smoke verification flow remains `bash scripts/smoke-simulator-demo.sh`, with maintainers optionally layering package tests on top via `CREEM_AGENT_PACKAGE_REPO`.
+Current repository note: the compose file now runs a dedicated host Laravel app from `app/`, while `simulator/` remains an optional second runtime for deterministic local Creem data. Heartbeat stays runnable through `bash scripts/run-heartbeat.sh`, and simulator coverage remains `bash scripts/smoke-simulator-demo.sh`.
 
 If no VM is needed, the same Docker Compose stack can run on the local machine. If `sudo` is unavailable, this still works in current-user standard agent mode as long as Docker is already available to the user.
 

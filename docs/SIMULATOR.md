@@ -1,10 +1,10 @@
 # Creem Simulator
 
-This document describes Approach 1: simulator-first. Use it before any live Creem or OpenClaw demo because it is the only fully deterministic path in the current repository layout.
+This document describes Approach 1: simulator-first. Use it before any live Creem or OpenClaw demo because it is the deterministic local path in the current repository layout.
 
 ## Purpose
 
-`creem-simulator` is a generated working directory created by `bash scripts/install-simulator.sh`. It installs the dedicated Laravel application from `romansh/laravel-creem-store-simulator`, which mimics the subset of the Creem API used by:
+`simulator` is a generated working directory created by `bash scripts/install-simulator.sh`. It installs the dedicated Laravel application from `romansh/laravel-creem-store-simulator`, which mimics the subset of the Creem API used by:
 
 - `romansh/laravel-creem`
 - `romansh/laravel-creem-cli`
@@ -39,11 +39,11 @@ The simulator persists all of this in SQLite, so you can:
 3. advance the simulator state
 4. run heartbeat again and observe meaningful changes
 
-For demo recordings, the checked-in `app` service can now run heartbeats directly because `laravel-creem-agent` is installed into the generated simulator app. A separate Laravel host app is optional only when you want stricter production-like separation.
+For demo recordings, the checked-in `app` service runs the dedicated host Laravel runtime from `app/`. The simulator remains a separate optional runtime that provides deterministic data and webhook delivery.
 
 ## Start simulator in Docker
 
-Before starting the simulator, run `bash scripts/install-simulator.sh` once, then configure `CREEM_SIMULATOR_*` values in the root `.env` (preferred) for a unified environment. You can also set them in `creem-simulator/.env` as simulator-local overrides.
+Before starting the simulator, run `bash scripts/install-app.sh` and `bash scripts/install-simulator.sh`, then configure `CREEM_SIMULATOR_*` values in `app/.env`. The simulator installer syncs them into `simulator/.env`.
 If you use `ngrok`, set `CREEM_SIMULATOR_AGENT_WEBHOOK_URL` after ngrok is running; otherwise use the internal Docker URL when agent and simulator are on the same network.
 
 ```env
@@ -53,8 +53,8 @@ CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
 
 Simulator `.env` handling
-- The simulator files are installed on demand via `bash scripts/install-simulator.sh` into `./creem-simulator`.
-- For local demo and CI runs you do not need to manually create or edit `creem-simulator/.env`. The provided scripts and automation copy `creem-simulator/.env.example` to `creem-simulator/.env` when `.env` is missing and run `php artisan key:generate --force` inside the simulator container so the app has a valid `APP_KEY` for demo use.
+- The simulator files are installed on demand via `bash scripts/install-simulator.sh` into `./simulator`.
+- For local demo and CI runs you do not need to manually create or edit `simulator/.env`. The provided scripts and automation copy `simulator/.env.example` to `simulator/.env` when `.env` is missing and run `php artisan key:generate --force` inside the simulator container so the app has a valid `APP_KEY` for demo use.
 - For production or persistent deployments, supply `APP_KEY`, webhook URL/secret, and API keys explicitly via environment variables, Docker/Kubernetes secrets, or your secret manager.
 
 
@@ -74,7 +74,7 @@ docker compose build app queue scheduler simulator
  docker compose run --rm simulator sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&
-  sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
+  sqlite_db="${DB_DATABASE:-/var/lib/simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
   php artisan key:generate &&
   php artisan migrate --seed &&
   php artisan octane:install --server=frankenphp --no-interaction
@@ -82,7 +82,7 @@ docker compose build app queue scheduler simulator
 bash scripts/smoke-simulator-demo.sh
 ```
 
-Important: the current compose file runs the generated `creem-simulator` app as the shared Laravel runtime for `app`, `queue`, and `scheduler`. The demo installer now places `laravel-creem-agent` inside that app, so heartbeat is available directly through `bash scripts/run-heartbeat.sh` or `docker compose exec app php artisan creem-agent:heartbeat`.
+Important: `app`, `queue`, and `scheduler` now run the dedicated host runtime from `app/`, while `simulator` stays isolated in `simulator/`. Heartbeat remains available through `bash scripts/run-heartbeat.sh` or `docker compose exec app php artisan creem-agent:heartbeat`.
 
 If you only need the simulator itself:
 
@@ -92,7 +92,7 @@ bash scripts/install-simulator.sh
 docker compose run --rm simulator sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&
-  sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
+  sqlite_db="${DB_DATABASE:-/var/lib/simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
   php artisan key:generate &&
   php artisan migrate --seed &&
   php artisan octane:install --server=frankenphp --no-interaction
@@ -101,13 +101,13 @@ docker compose up -d simulator
 
 Octane server note
 
-If your demo uses FrankenPHP + Octane, add `OCTANE_SERVER=frankenphp` to the app `.env` (and to `creem-simulator/.env` after installation, when the simulator runs Octane) before running `php artisan octane:install`:
+If your demo uses FrankenPHP + Octane, add `OCTANE_SERVER=frankenphp` to the app `.env` (and to `simulator/.env` after installation, when the simulator runs Octane) before running `php artisan octane:install`:
 
 ```bash
 # add to app .env
-printf "\nOCTANE_SERVER=frankenphp\n" >> .env
+printf "\nOCTANE_SERVER=frankenphp\n" >> app/.env
 # if simulator needs it
-printf "\nOCTANE_SERVER=frankenphp\n" >> creem-simulator/.env
+printf "\nOCTANE_SERVER=frankenphp\n" >> simulator/.env
 ```
 ```
 
@@ -130,7 +130,7 @@ If both apps run inside the same Docker Compose network, `http://simulator/api/v
 To let the simulator push webhooks directly into the agent app container:
 
 ```env
-CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://agent-app/creem/webhook
+CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
 CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
 CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```

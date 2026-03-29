@@ -58,25 +58,25 @@ Below are concise step sequences for each primary flow.
 
 ### Flow A — Docker on the host (fastest)
 
-When to fill tokens and variables: copy `.env.example` to `.env` before the init/install commands below and do a one-time setup of the values you plan to use. Put real tokens, Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same `.env` so the whole stack uses one consistent configuration file. Also set `NGROK_URL` in `.env` to the public ngrok URL you will use for webhooks (for example `NGROK_URL=https://abcd1234.ngrok.app`).
+When to fill tokens and variables: copy `app/.env.example` to `app/.env` before the init/install commands below and do a one-time setup of the values you plan to use. Put real tokens, Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same file. Also set `NGROK_URL` in `app/.env` to the public ngrok URL you will use for webhooks (for example `NGROK_URL=https://abcd1234.ngrok.app`).
 
-`test -f .env || cp .env.example .env` in scripts is a fallback only; if you already have custom values, the command should not overwrite them. If you run automation with no `.env`, this fallback ensures the file exists.
+Use `app/.env` as the single source of truth for the demo app. Initialize it with `cp app/.env.example app/.env` before running the install scripts.
 
 Simulator `.env` handling for demo runs
-- The simulator is no longer checked into this repository. Install it into `./creem-simulator` with `bash scripts/install-simulator.sh` before Docker builds or smoke runs.
-- After installation, you do not need to manually create or edit `creem-simulator/.env` during local demo or smoke runs. The provided automation and `scripts/smoke-simulator-demo.sh` will copy `creem-simulator/.env.example` to `creem-simulator/.env` when `.env` is missing and will generate an application key inside the simulator container (`php artisan key:generate --force`).
+- The simulator is no longer checked into this repository. Install it into `./simulator` with `bash scripts/install-simulator.sh` before Docker builds or smoke runs.
+- After installation, you do not need to manually create or edit `simulator/.env` during local demo or smoke runs. `bash scripts/install-simulator.sh` syncs the relevant values from `app/.env`, and the smoke script will generate an application key inside the simulator container when needed.
 - This automatic copy-and-generate behavior is intended only for local/demo/CI use. For production or long-running environments, provide explicit secrets (`APP_KEY`, webhook URL/secret, API keys) via environment variables, Docker secrets, or your orchestration platform. Do not commit real secrets to the repository.
 
-If you plan to use multiple Creem stores (multi-store demo), add the secondary store variables to `.env` during that same setup step and then verify that the published `config/creem.php` maps those variables to the `secondary` profile. Look for `CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, and `CREEM_SECONDARY_API_URL` in the project `.env.example`.
+If you plan to use multiple Creem stores (multi-store demo), add the secondary store variables to `app/.env` during that same setup step and then verify that the published `config/creem.php` maps those variables to the `secondary` profile. Look for `CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, and `CREEM_SECONDARY_API_URL` in `app/.env.example`.
 
 Using a fixed ngrok URL from `.env`:
 
 ```bash
-# Load variables from the demo .env (if present)
-set -o allexport; test -f .env && source .env || true; set +o allexport
+# Load variables from the demo app env (if present)
+set -o allexport; test -f app/.env && source app/.env || true; set +o allexport
 
 # Fail fast if NGROK_URL is not configured
-test -n "${NGROK_URL:-}" || { echo "NGROK_URL not set in .env; set NGROK_URL=https://your-id.ngrok.app"; false; }
+test -n "${NGROK_URL:-}" || { echo "NGROK_URL not set in app/.env; set NGROK_URL=https://your-id.ngrok.app"; false; }
 echo "Using public URL: $NGROK_URL"
 ```
 
@@ -103,7 +103,7 @@ OLLAMA_BASE_URL=http://localhost:11434
 
 Switch providers by changing `CREEM_AGENT_LLM_PROVIDER`; switch models by changing `CREEM_AGENT_LLM_MODEL`. The example file keeps Gemini lines commented out so you can quickly switch the agent to `gemini-2.5-flash-lite` without rewriting the section. If you want to customize Laravel AI's provider registry itself, publish `config/ai.php` with `php artisan vendor:publish --tag=ai-config`.
 
-What the demo `.env.example` covers
+What `app/.env.example` covers
 - Core Laravel runtime: `APP_*`, locale, mail, queue, cache, session, and `OCTANE_SERVER`.
 - Database: SQLite by default via `DB_CONNECTION=sqlite` and `DB_DATABASE=database/database.sqlite`.
 - Notification channels: Telegram, Slack, and Discord webhook variables.
@@ -112,7 +112,7 @@ What the demo `.env.example` covers
 - Creem primary and secondary store credentials: `CREEM_API_*`, `CREEM_WEBHOOK_SECRET`, and `CREEM_SECONDARY_*`.
 - Simulator wiring: `CREEM_SIMULATOR_*` variables for internal webhook delivery from the installed simulator package.
 
-Agent app `.env`:
+Agent app `app/.env`:
 
 ```env
 APP_URL=http://127.0.0.1:8000
@@ -126,7 +126,7 @@ CREEM_AGENT_TELEGRAM_CHAT_ID=...
 OCTANE_SERVER=frankenphp
 ```
 
-If you use the simulator, set these in `./.env` (preferred for unified configuration). You can also set them in `creem-simulator/.env` after running `bash scripts/install-simulator.sh`.
+If you use the simulator, set these in `app/.env`. `bash scripts/install-simulator.sh` will sync them into `simulator/.env`.
 
 ```env
 CREEM_SIMULATOR_AGENT_WEBHOOK_URL=http://app/creem/webhook
@@ -134,35 +134,39 @@ CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
 CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
 
-Optionally, keep the values in the root `.env` and let docker-compose inject them into the simulator container via `docker-compose.yml`.
+`docker-compose.yml` now reads `app/.env` for the host runtime and `simulator/.env` for the simulator runtime.
 
 
 From the host shell:
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
+bash scripts/install-app.sh
 bash scripts/install-simulator.sh
 docker compose build app queue scheduler simulator
 # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
+docker compose run --rm app sh -lc '
+    git config --global --add safe.directory /app && composer install --no-interaction &&
+    test -f .env || cp .env.example .env &&
+    sqlite_db="${DB_DATABASE:-/var/lib/agent-app/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
+    php artisan key:generate &&
+    php artisan migrate --force
+'
 docker compose run --rm simulator sh -lc '
     git config --global --add safe.directory /app && composer install --no-interaction &&
     test -f .env || cp .env.example .env &&
-    sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
+    sqlite_db="${DB_DATABASE:-/var/lib/simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
     php artisan key:generate &&
     php artisan migrate --seed &&
     php artisan octane:install --server=frankenphp --no-interaction
 '
 docker compose up -d app queue scheduler simulator
 ```
-
-Do not initialize `app` with `run --rm app ...` in the current repository state. That service points at `creem-simulator`, not at a dedicated agent-hosting Laravel app.
-
+-
 Start services and run the supported verification flow:
 
-Current topology note:
-
-- The checked-in `docker-compose.yml` runs the generated `creem-simulator` app as the shared Laravel runtime for `app`, `queue`, and `scheduler`.
-- `bash scripts/install-simulator.sh` now installs `romansh/laravel-creem`, `romansh/laravel-creem-cli`, and `romansh/laravel-creem-agent` into that generated app.
+- `app`, `queue`, and `scheduler` now run the dedicated host runtime from `./app`.
+- `simulator` is isolated in `./simulator` and is optional outside simulator-backed demos.
 - Use the smoke runner for simulator/webhook verification and for standalone Telegram outbound-send smoke.
 - Package-level Telegram send/receive verification from `laravel-creem-agent` is maintainer-only and requires a separate source checkout. End users should not assume that checkout exists inside a VM or shared folder.
 
@@ -236,7 +240,7 @@ The machine or container user running Composer must have read access to these re
 
 ### Flow B — Docker inside VirtualBox (recommended for isolated VM)
 
-In the VM the timing is the same as on the host: copy `.env.example` to `.env`, fill it once with the values you need, then run initialization. The `ngrok` service can start later when you need a public HTTPS callback URL, but its token should already be present in the same `.env` file.
+In the VM the timing is the same as on the host: copy `app/.env.example` to `app/.env`, fill it once with the values you need, then run initialization. The `ngrok` service can start later when you need a public HTTPS callback URL, but its token should already be present in the same file.
 
 Summary: provision a VM, mount the host repo into the guest (for example at `/home/www`), then run the Docker-based setup inside the VM. This keeps host clean and simulates a small VPS.
 
@@ -258,7 +262,7 @@ docker compose build app queue scheduler simulator
 docker compose run --rm simulator sh -lc '
     git config --global --add safe.directory /app && composer install --no-interaction &&
     test -f .env || cp .env.example .env &&
-    sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
+    sqlite_db="${DB_DATABASE:-/var/lib/simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
     php artisan key:generate &&
     php artisan migrate --seed &&
     php artisan octane:install --server=frankenphp --no-interaction
@@ -466,7 +470,7 @@ Fallback current-user flow if Docker is unavailable:
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 composer install
-cp .env.example .env
+cp app/.env.example app/.env
 php artisan key:generate
 php artisan migrate
 php artisan creem-agent:install
@@ -504,7 +508,7 @@ Typical flow:
 
 ```bash
 # Start the ngrok container using the token already stored in `.env`
-docker compose --env-file .env up -d ngrok
+docker compose --env-file app/.env up -d ngrok
 
 # Extract the public HTTPS URL from the ngrok container logs.
 # If this prints nothing, check `.env` for `NGROK_AUTHTOKEN` and inspect `docker compose logs ngrok`.
@@ -513,7 +517,7 @@ test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN and n
 echo "$NGROK_URL"
 
 # Or load `.env` into the current shell session before starting compose:
-set -o allexport; source .env; set +o allexport
+set -o allexport; source app/.env; set +o allexport
 docker compose up -d ngrok
 NGROK_URL="$(docker compose logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
 test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN and ngrok logs"; false; }
@@ -538,7 +542,7 @@ Recommended setup combinations:
 ### Local machine runs the full Docker stack
 
 1. Put `NGROK_AUTHTOKEN` in `.env`
-2. Run `docker compose --env-file .env up -d app queue scheduler ngrok`
+2. Run `docker compose --env-file app/.env up -d app queue scheduler ngrok`
 3. Read the HTTPS URL from the ngrok container output or logs (inspector not published by default)
 4. Put that HTTPS URL into Creem webhook settings
 
@@ -651,7 +655,7 @@ After running `php artisan vendor:publish`, verify that `config/creem.php` in yo
 
 ### LLM keys seem valid but chat still falls back
 - `CREEM_AGENT_LLM_PROVIDER` and `CREEM_AGENT_LLM_MODEL` only choose the Laravel AI provider/model; the actual credentials must still be present in the standard Laravel AI env keys such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or `OPENROUTER_API_KEY`
-- In the checked-in demo, `bash scripts/install-simulator.sh` syncs those values from the root `.env` into `creem-simulator/.env`; re-run that script after editing provider credentials
+- In the checked-in demo, `bash scripts/install-simulator.sh` syncs those values from `app/.env` into `simulator/.env`; re-run that script after editing provider credentials
 - Verify the live app sees the key with `docker compose exec app php artisan tinker --execute="dump(filled(config('ai.providers.openai.key')));"` or the equivalent provider key
 - If logs show `cURL error 6: Could not resolve host: api.openai.com`, this is a Docker/container DNS problem, not a bad API key. In one broken runtime here, `simulator` resolved `api.openai.com`, but `app` had `/etc/resolv.conf` pointing at `127.0.0.53` instead of Docker's internal `127.0.0.11`
 - In that case, recreate the affected service and re-sync env before blaming the key: `bash scripts/install-simulator.sh && docker compose up -d --force-recreate app queue scheduler simulator`
