@@ -1,6 +1,10 @@
 # Demo-specific ignored resources (internal)
 .resources/
 vendor/
-creem-simulator/
+simulator/
+app/*
+!app/.env.example
+!app/README.md
+!app/.gitignore
 .env
 database/database.sqlite

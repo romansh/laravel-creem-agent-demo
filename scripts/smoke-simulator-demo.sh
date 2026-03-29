@@ -5,8 +5,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE=(docker compose --project-directory "$ROOT_DIR")
 
+ensure_app_installed() {
+  if [ -f "$ROOT_DIR/app/artisan" ] && [ -f "$ROOT_DIR/app/composer.json" ]; then
+    return 0
+  fi
+
+  "$ROOT_DIR/scripts/install-app.sh"
+}
+
 ensure_simulator_installed() {
-  if [ -f "$ROOT_DIR/creem-simulator/composer.json" ] && grep -q '"name": "romansh/laravel-creem-store-simulator"' "$ROOT_DIR/creem-simulator/composer.json"; then
+  if [ -f "$ROOT_DIR/simulator/composer.json" ] && grep -q '"name": "romansh/laravel-creem-store-simulator"' "$ROOT_DIR/simulator/composer.json"; then
     return 0
   fi
 
@@ -37,6 +45,7 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
+ensure_app_installed
 ensure_simulator_installed
 
 "${COMPOSE[@]}" down --remove-orphans >/dev/null 2>&1 || true
@@ -57,6 +66,10 @@ wait_for_simulator() {
 
 run_simulator() {
   "${COMPOSE[@]}" run --rm simulator sh -lc "$1"
+}
+
+run_app() {
+  "${COMPOSE[@]}" run --rm app sh -lc "$1"
 }
 
 run_agent_package_tests() {
@@ -117,7 +130,21 @@ run_agent_telegram_runtime_smoke() {
   docker rm -f telegram-smoke-receiver >/dev/null 2>&1 || true
 }
 
-echo "[1/6] Bootstrap simulator container"
+echo "[1/7] Bootstrap agent app container"
+run_app '
+  git config --global --add safe.directory /app &&
+  composer install --no-interaction >/tmp/composer.log &&
+  test -f .env || cp .env.example .env &&
+  sqlite_db="${DB_DATABASE:-/var/lib/agent-app/database.sqlite}" &&
+  mkdir -p "$(dirname "$sqlite_db")" &&
+  rm -f "$sqlite_db" &&
+  rm -rf storage/creem-agent &&
+  touch "$sqlite_db" &&
+  php artisan key:generate --force &&
+  php artisan migrate:fresh --force
+'
+
+echo "[2/7] Bootstrap simulator container"
 run_simulator '
   CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET=test-secret \
   CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET=secondary-secret \
@@ -126,7 +153,7 @@ run_simulator '
   git config --global --add safe.directory /app &&
   composer install --no-interaction >/tmp/composer.log &&
   test -f .env || cp .env.example .env &&
-  sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" &&
+  sqlite_db="${DB_DATABASE:-/var/lib/simulator/database.sqlite}" &&
   mkdir -p "$(dirname "$sqlite_db")" &&
   rm -f "$sqlite_db" &&
   rm -rf storage/creem-agent &&
@@ -135,7 +162,7 @@ run_simulator '
   php artisan migrate:fresh --seed --force
 '
 
-echo "[2/6] Run simulator flow tests"
+echo "[3/7] Run simulator flow tests"
 run_simulator '
   CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=1 \
   CREEM_SIMULATOR_RANDOM_SEED=2026 \
@@ -150,15 +177,24 @@ run_simulator '
   CREEM_SIMULATOR_RANDOM_SEED=2026 php artisan simulator:seed-demo --store=secondary --reset
 '
 
-echo "[3/6] Run user heartbeat command"
+echo "[4/7] Run user heartbeat command"
 "${COMPOSE[@]}" up -d simulator >/dev/null
 wait_for_simulator
-"${COMPOSE[@]}" run --rm -T app php artisan creem-agent:heartbeat --force --all-stores
+"${COMPOSE[@]}" run --rm -T \
+  -e CREEM_TEST_MODE=true \
+  -e CREEM_API_URL=http://simulator/api/v1 \
+  -e CREEM_TEST_API_URL=http://simulator/api/v1 \
+  -e CREEM_API_KEY=creem_test_demo_default \
+  -e CREEM_WEBHOOK_SECRET=whsec_demo_default \
+  -e CREEM_SECONDARY_API_KEY=creem_test_demo_secondary \
+  -e CREEM_SECONDARY_WEBHOOK_SECRET=whsec_demo_secondary \
+  -e CREEM_SECONDARY_API_URL=http://simulator/api/v1 \
+  app php artisan creem-agent:heartbeat --force --all-stores
 
-echo "[4/6] Run agent Telegram send/receive tests"
+echo "[5/7] Run agent Telegram send/receive tests"
 run_agent_package_tests
 
-echo "[5/6] Run agent Telegram runtime smoke"
+echo "[6/7] Run agent Telegram runtime smoke"
 run_agent_telegram_runtime_smoke
 
 PROJECT_NAME="$(basename "$ROOT_DIR")"
@@ -178,7 +214,7 @@ if [ -n "$NETWORK_NAME" ]; then
     sleep 1
   done
 
-  echo "[6/6] Run simulator smoke commands"
+  echo "[7/7] Run simulator smoke commands"
   run_simulator '
     CREEM_SIMULATOR_RANDOM_SEED=2026 \
     php artisan simulator:seed-demo --store=default --reset &&

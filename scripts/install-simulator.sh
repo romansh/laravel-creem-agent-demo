@@ -3,7 +3,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SIMULATOR_DIR="${ROOT_DIR}/creem-simulator"
+APP_DIR="${ROOT_DIR}/app"
+APP_ENV_FILE="${APP_DIR}/.env"
+SIMULATOR_DIR="${ROOT_DIR}/simulator"
 SIMULATOR_PACKAGE="${CREEM_SIMULATOR_PACKAGE:-romansh/laravel-creem-store-simulator}"
 SIMULATOR_VERSION="${CREEM_SIMULATOR_VERSION:-^1.0}"
 CREEM_PACKAGE_VERSION="${CREEM_PACKAGE_VERSION:-^1.2}"
@@ -14,10 +16,8 @@ BOOTSTRAP_APP_TEMPLATE="${ROOT_DIR}/stubs/bootstrap-app.php"
 VIEW_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/view.php"
 LOCAL_AGENT_REPO="${CREEM_AGENT_PACKAGE_REPO:-${ROOT_DIR}/../laravel-creem-agent}"
 
-ensure_root_env() {
-  if [ ! -f "${ROOT_DIR}/.env" ] && [ -f "${ROOT_DIR}/.env.example" ]; then
-    cp "${ROOT_DIR}/.env.example" "${ROOT_DIR}/.env"
-  fi
+ensure_app_installed() {
+  "${ROOT_DIR}/scripts/install-app.sh"
 }
 
 simulator_ready() {
@@ -68,11 +68,11 @@ sync_env_value() {
   local key="$1"
   local value
 
-  if [ ! -f "${ROOT_DIR}/.env" ]; then
+  if [ ! -f "${APP_ENV_FILE}" ]; then
     return 0
   fi
 
-  value="$(grep -E "^${key}=" "${ROOT_DIR}/.env" | tail -n1 | cut -d= -f2- || true)"
+  value="$(grep -E "^${key}=" "${APP_ENV_FILE}" | tail -n1 | cut -d= -f2- || true)"
   if [ -z "$value" ]; then
     return 0
   fi
@@ -162,7 +162,7 @@ if ! command -v composer >/dev/null 2>&1; then
   exit 1
 fi
 
-ensure_root_env
+ensure_app_installed
 
 if simulator_ready; then
   ensure_demo_packages_installed

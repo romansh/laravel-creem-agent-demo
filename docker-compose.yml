@@ -3,16 +3,18 @@ services:
     build:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
-    working_dir: /app/creem-simulator
+    env_file:
+      - ./app/.env
+    working_dir: /app
     volumes:
-      - .:/app
+      - ./app:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
-      - creem_demo_sqlite:/var/lib/creem-simulator
-      - app_octane_json_demo:/app/creem-simulator/storage/octane-state
-      - app_octane_json_demo:/app/creem-simulator/storage/logs
+      - app_sqlite_demo:/var/lib/agent-app
+      - app_octane_state_demo:/app/storage/octane-state
+      - app_logs_demo:/app/storage/logs
     environment:
       DB_CONNECTION: sqlite
-      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
+      DB_DATABASE: /var/lib/agent-app/database.sqlite
     ports:
       - "8000:80"
     command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80 --admin-port=2019
@@ -21,14 +23,16 @@ services:
     build:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
-    working_dir: /app/creem-simulator
+    env_file:
+      - ./app/.env
+    working_dir: /app
     volumes:
-      - .:/app
+      - ./app:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
-      - creem_demo_sqlite:/var/lib/creem-simulator
+      - app_sqlite_demo:/var/lib/agent-app
     environment:
       DB_CONNECTION: sqlite
-      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
+      DB_DATABASE: /var/lib/agent-app/database.sqlite
     command: php artisan queue:work --queue=creem-agent --tries=3 --verbose
     healthcheck:
       test: ["CMD-SHELL", "tr '\\0' ' ' </proc/1/cmdline | grep -q 'queue:work'"]
@@ -41,14 +45,16 @@ services:
     build:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
-    working_dir: /app/creem-simulator
+    env_file:
+      - ./app/.env
+    working_dir: /app
     volumes:
-      - .:/app
+      - ./app:/app
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
-      - creem_demo_sqlite:/var/lib/creem-simulator
+      - app_sqlite_demo:/var/lib/agent-app
     environment:
       DB_CONNECTION: sqlite
-      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
+      DB_DATABASE: /var/lib/agent-app/database.sqlite
     command: sh -lc "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
     healthcheck:
       test: ["CMD-SHELL", "tr '\\0' ' ' </proc/1/cmdline | grep -q 'schedule:run'"]
@@ -61,36 +67,42 @@ services:
     image: ngrok/ngrok:latest
     depends_on:
       - app
+    env_file:
+      - ./app/.env
     environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
       NGROK_URL: ${NGROK_URL:-}
     entrypoint: sh -c 'if [ -n "$$NGROK_URL" ]; then exec ngrok http app:80 --log=stdout --url "$$NGROK_URL"; else exec ngrok http app:80 --log=stdout; fi'
 
   simulator:
     build:
-      context: ./creem-simulator
+      context: ./simulator
       dockerfile: docker/frankenphp/Dockerfile
+    env_file:
+      - ./simulator/.env
     working_dir: /app
     volumes:
-      - ./creem-simulator:/app
-      - creem_demo_sqlite:/var/lib/creem-simulator
-      - app_octane_json_demo:/app/storage/octane-state
-      - app_octane_json_demo:/app/storage/logs
+      - ./simulator:/app
+      - simulator_sqlite_demo:/var/lib/simulator
+      - simulator_octane_state_demo:/app/storage/octane-state
+      - simulator_logs_demo:/app/storage/logs
     expose:
       - "80"
     environment:
       DB_CONNECTION: sqlite
-      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
-      CREEM_SIMULATOR_DEFAULT_API_KEY: ${CREEM_SIMULATOR_DEFAULT_API_KEY}
-      CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET: ${CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET}
-      CREEM_SIMULATOR_SECONDARY_API_KEY: ${CREEM_SIMULATOR_SECONDARY_API_KEY}
-      CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET: ${CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET}
-      CREEM_SIMULATOR_AGENT_WEBHOOK_URL: ${CREEM_SIMULATOR_AGENT_WEBHOOK_URL}
-      CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET: ${CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET}
-      CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS: ${CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS}
+      DB_DATABASE: /var/lib/simulator/database.sqlite
     command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80 --admin-port=2019
 
 volumes:
-  creem_demo_sqlite:
-  app_octane_json_demo:
+  app_sqlite_demo:
+    driver: local
+  app_octane_state_demo:
+    driver: local
+  app_logs_demo:
+    driver: local
+  simulator_sqlite_demo:
+    driver: local
+  simulator_octane_state_demo:
+    driver: local
+  simulator_logs_demo:
     driver: local

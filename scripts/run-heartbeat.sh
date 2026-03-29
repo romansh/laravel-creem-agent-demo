@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE=(docker compose --project-directory "${ROOT_DIR}")
+APP_ENV_FILE="${ROOT_DIR}/app/.env"
 
 service_container_id() {
   "${COMPOSE[@]}" ps -q "$1" 2>/dev/null | head -n1
@@ -38,11 +39,11 @@ read_config_value() {
     return 0
   fi
 
-  if [ ! -f "${ROOT_DIR}/.env" ]; then
+  if [ ! -f "${APP_ENV_FILE}" ]; then
     return 0
   fi
 
-  value="$(grep -E "^${key}=" "${ROOT_DIR}/.env" | tail -n1 | cut -d= -f2- || true)"
+  value="$(grep -E "^${key}=" "${APP_ENV_FILE}" | tail -n1 | cut -d= -f2- || true)"
   value="${value%\"}"
   value="${value#\"}"
   printf '%s\n' "$value"
@@ -78,13 +79,10 @@ wait_for_simulator() {
   '
 }
 
-if [ ! -f "${ROOT_DIR}/.env" ] && [ -f "${ROOT_DIR}/.env.example" ]; then
-  cp "${ROOT_DIR}/.env.example" "${ROOT_DIR}/.env"
-fi
-
-"${ROOT_DIR}/scripts/install-simulator.sh"
+"${ROOT_DIR}/scripts/install-app.sh"
 
 if needs_simulator; then
+  "${ROOT_DIR}/scripts/install-simulator.sh"
   ensure_service_running app
   ensure_service_running simulator
   wait_for_simulator
