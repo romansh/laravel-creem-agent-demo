@@ -339,6 +339,25 @@ Host (VirtualBox Manager):
 - Set "Folder Path" to `/home/roman/php/run` and "Folder Name" to `repo_run`.
 - (Optional) Check "Make Permanent". Do NOT check "Auto-mount" if you want to control the mount point (`/hove/www`) in the guest.
 
+### Install VirtualBox on the host (Ubuntu/Debian)
+
+If you need to install VirtualBox on the host machine, run:
+
+```bash
+sudo apt update
+sudo apt install -y virtualbox
+```
+
+Then create the shared folder and NAT port forwards (replace "VM-name"):
+
+```bash
+# shared folder
+VBoxManage sharedfolder add "VM-name" --name repo_run --hostpath /home/roman/php/run --automount
+# port forwards: host->guest
+VBoxManage modifyvm "VM-name" --natpf1 "ssh,tcp,,2222,,22"
+VBoxManage modifyvm "VM-name" --natpf1 "http8000,tcp,,8000,,8000"
+```
+
 Guest (Ubuntu Server inside VM):
 
 1. Install build tools / headers (needed if you use the Guest Additions ISO):
@@ -375,6 +394,26 @@ sudo usermod -aG vboxsf $USER
 ```bash
 sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) repo_run /home/www
 ```
+
+### Install Docker inside the guest (Ubuntu)
+
+Install Docker and Docker Compose plugin inside the VM so the demo runs fully in the guest:
+
+```bash
+# prerequisites
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" |
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+```
+
+After adding your user to `docker` and `vboxsf`, log out and back in (or reboot) to apply group membership.
 
 
 5. Make the mount permanent (optional) — append a line to `/etc/fstab` using `tee`. Replace `1000`/`1000` with your `id -u`/`id -g` if different.
@@ -609,6 +648,14 @@ After running `php artisan vendor:publish`, verify that `config/creem.php` in yo
 - For user-facing heartbeat checks in this repository, prefer `bash scripts/run-heartbeat.sh --all-stores`
 - In this repository, the HTTP agent endpoints are served by the checked-in demo stack itself after `docker compose up -d app queue scheduler simulator`, so use direct checks against `http://127.0.0.1:8000/creem-agent/status` and `http://127.0.0.1:8000/creem-agent/chat` without switching to a separate `laravel-creem-agent` checkout
 - If OpenClaw runs on another host, expose the app via Nginx/Caddy and update `APP_URL`
+
+### LLM keys seem valid but chat still falls back
+- `CREEM_AGENT_LLM_PROVIDER` and `CREEM_AGENT_LLM_MODEL` only choose the Laravel AI provider/model; the actual credentials must still be present in the standard Laravel AI env keys such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or `OPENROUTER_API_KEY`
+- In the checked-in demo, `bash scripts/install-simulator.sh` syncs those values from the root `.env` into `creem-simulator/.env`; re-run that script after editing provider credentials
+- Verify the live app sees the key with `docker compose exec app php artisan tinker --execute="dump(filled(config('ai.providers.openai.key')));"` or the equivalent provider key
+- If logs show `cURL error 6: Could not resolve host: api.openai.com`, this is a Docker/container DNS problem, not a bad API key. In one broken runtime here, `simulator` resolved `api.openai.com`, but `app` had `/etc/resolv.conf` pointing at `127.0.0.53` instead of Docker's internal `127.0.0.11`
+- In that case, recreate the affected service and re-sync env before blaming the key: `bash scripts/install-simulator.sh && docker compose up -d --force-recreate app queue scheduler simulator`
+- If `--force-recreate` fails because port `8000` is already in use, free that port first and then recreate the containers so Docker rewrites the resolver config
 
 ### Webhooks are not arriving
 - Confirm the webhook URL in Creem is `https://YOUR-NGROK-URL/creem/webhook`

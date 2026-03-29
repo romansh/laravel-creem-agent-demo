@@ -175,7 +175,7 @@ Then the dedicated simulator-backed agent host can answer messages such as `stat
 
 ## Move to real Creem after simulator-first passes
 
-After the commands above are green, continue with the real-Creem sections in `.resources/FLOW.md` and `.resources/SCENARIO_1_OPENCLAW_FULL.md`.
+After the commands above are green, continue with the real-Creem sections in `FLOW.md` and `.resources/SCENARIO_1_OPENCLAW_FULL.md`.
 
 ## Guest Additions & Shared Folder (optional)
 

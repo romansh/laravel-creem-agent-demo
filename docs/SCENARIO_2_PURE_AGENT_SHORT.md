@@ -167,7 +167,7 @@ docker compose exec simulator \
 
 ## Move to real Creem after simulator-first passes
 
-Once the smoke runner and package tests pass, continue with the real-Creem sections in `.resources/FLOW.md` and `.resources/SCENARIO_2_PURE_AGENT_FULL.md`.
+Once the smoke runner and package tests pass, continue with the real-Creem sections in `FLOW.md` and `.resources/SCENARIO_2_PURE_AGENT_FULL.md`.
 
 ## Fallback if Docker is unavailable
 
