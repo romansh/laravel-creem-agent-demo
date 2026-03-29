@@ -28,7 +28,7 @@ services:
       - --port=80
       - --admin-port=2019
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS --max-time 5 http://localhost/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS --max-time 5 http://localhost/api/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
