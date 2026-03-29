@@ -21,9 +21,9 @@ Important: the current compose file uses the generated `creem-simulator` app as 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 	bash scripts/install-simulator.sh
- docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
+ docker compose build app queue scheduler simulator
   # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
- docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+ docker compose run --rm simulator sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&
   sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
@@ -79,7 +79,7 @@ Docker Compose maps the `./.env` values into `simulator` when the service starts
 ## Start stack
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
+docker compose up -d app queue scheduler simulator
 ```
 
 ## Start ngrok later, if needed
@@ -88,7 +88,7 @@ Only do this when you need public webhook delivery from Creem or Telegram. The r
 
 ```bash
 # Start ngrok container (it still needs the auth token in .env)
-docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
+docker compose --env-file .env up -d ngrok
 
 # Load .env and validate required values
 set -o allexport; test -f .env && source .env || true; set +o allexport
@@ -159,9 +159,9 @@ run heartbeat
 Before asking those questions, create fresh simulator changes:
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml exec simulator \
+docker compose exec simulator \
   php artisan simulator:advance --sales=3 --new-customers=2 --past-due=2 --cancellations=1 --send-webhooks
-docker compose -f docker-compose.frankenphp.yml exec simulator \
+docker compose exec simulator \
   php artisan simulator:send-webhook payment.failed
 ```
 

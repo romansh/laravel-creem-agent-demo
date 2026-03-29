@@ -21,7 +21,7 @@ Full step-by-step runbooks:
 
 Preferred runtime for the Laravel app:
 
-- `Docker + FrankenPHP + Octane` via `docker-compose.frankenphp.yml`
+- `Docker + FrankenPHP + Octane` via `docker-compose.yml`
 - `php artisan serve` is fallback-only for restricted environments
 
 ### Mode A: Full OpenClaw + Laravel agent
@@ -134,7 +134,7 @@ CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
 CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
 
-Optionally, keep the values in the root `.env` and let docker-compose inject them into the simulator container via `docker-compose.frankenphp.yml`.
+Optionally, keep the values in the root `.env` and let docker-compose inject them into the simulator container via `docker-compose.yml`.
 
 
 From the host shell:
@@ -142,9 +142,9 @@ From the host shell:
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/install-simulator.sh
-docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
+docker compose build app queue scheduler simulator
 # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
-docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+docker compose run --rm simulator sh -lc '
     git config --global --add safe.directory /app && composer install --no-interaction &&
     test -f .env || cp .env.example .env &&
     sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
@@ -152,7 +152,7 @@ docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
     php artisan migrate --seed &&
     php artisan octane:install --server=frankenphp --no-interaction
 '
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
+docker compose up -d app queue scheduler simulator
 ```
 
 Do not initialize `app` with `run --rm app ...` in the current repository state. That service points at `creem-simulator`, not at a dedicated agent-hosting Laravel app.
@@ -161,7 +161,7 @@ Start services and run the supported verification flow:
 
 Current topology note:
 
-- The checked-in `docker-compose.frankenphp.yml` runs the generated `creem-simulator` app as the shared Laravel runtime for `app`, `queue`, and `scheduler`.
+- The checked-in `docker-compose.yml` runs the generated `creem-simulator` app as the shared Laravel runtime for `app`, `queue`, and `scheduler`.
 - `bash scripts/install-simulator.sh` now installs `romansh/laravel-creem`, `romansh/laravel-creem-cli`, and `romansh/laravel-creem-agent` into that generated app.
 - Use the smoke runner for simulator/webhook verification and for standalone Telegram outbound-send smoke.
 - Package-level Telegram send/receive verification from `laravel-creem-agent` is maintainer-only and requires a separate source checkout. End users should not assume that checkout exists inside a VM or shared folder.
@@ -232,7 +232,7 @@ The machine or container user running Composer must have read access to these re
 - `romansh/laravel-creem-cli`
 - `romansh/laravel-creem-agent`
 
-`REPO_MOUNT` in `docker-compose.frankenphp.yml` is now optional and only useful when you want to mount extra local workspace files into the containers for debugging or recording.
+`REPO_MOUNT` in `docker-compose.yml` is now optional and only useful when you want to mount extra local workspace files into the containers for debugging or recording.
 
 ### Flow B — Docker inside VirtualBox (recommended for isolated VM)
 
@@ -254,8 +254,8 @@ Mount the host repo into the VM (see Appendix), then inside the guest:
 ```bash
 cd /home/www/laravel-creem-agent-demo
 bash scripts/install-simulator.sh
-docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
-docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+docker compose build app queue scheduler simulator
+docker compose run --rm simulator sh -lc '
     git config --global --add safe.directory /app && composer install --no-interaction &&
     test -f .env || cp .env.example .env &&
     sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
@@ -263,7 +263,7 @@ docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
     php artisan migrate --seed &&
     php artisan octane:install --server=frankenphp --no-interaction
 '
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
+docker compose up -d app queue scheduler simulator
 ```
 
 Then run the supported checks inside the VM:
@@ -327,7 +327,7 @@ After that, create per-package folders under `/hove/www` (e.g. `laravel-creem`, 
 - `bash scripts/smoke-simulator-demo.sh` → simulator + webhook smoke + user-facing heartbeat validation + standalone Telegram outbound-send smoke
 - `bash scripts/run-heartbeat.sh --all-stores` → direct demo heartbeat against the current simulator-backed stack
 - `CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh` → optional maintainer-only package Telegram coverage
-- `docker compose -f docker-compose.frankenphp.yml ps -a` → confirm simulator stack state
+- `docker compose ps -a` → confirm simulator stack state
 
 ## Appendix: VirtualBox Guest Additions & Shared Folder (detailed)
 
@@ -465,18 +465,18 @@ Typical flow:
 
 ```bash
 # Start the ngrok container using the token already stored in `.env`
-docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
+docker compose --env-file .env up -d ngrok
 
 # Extract the public HTTPS URL from the ngrok container logs.
-# If this prints nothing, check `.env` for `NGROK_AUTHTOKEN` and inspect `docker compose -f docker-compose.frankenphp.yml logs ngrok`.
-NGROK_URL="$(docker compose -f docker-compose.frankenphp.yml logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
+# If this prints nothing, check `.env` for `NGROK_AUTHTOKEN` and inspect `docker compose logs ngrok`.
+NGROK_URL="$(docker compose logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
 test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN and ngrok logs"; false; }
 echo "$NGROK_URL"
 
 # Or load `.env` into the current shell session before starting compose:
 set -o allexport; source .env; set +o allexport
-docker compose -f docker-compose.frankenphp.yml up -d ngrok
-NGROK_URL="$(docker compose -f docker-compose.frankenphp.yml logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
+docker compose up -d ngrok
+NGROK_URL="$(docker compose logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
 test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN and ngrok logs"; false; }
 echo "$NGROK_URL"
 ```
@@ -492,14 +492,14 @@ Recommended setup combinations:
 ### VirtualBox guest runs the full Docker stack
 
 1. In VirtualBox, forward host `8000` to guest `8000`. Forwarding host `4040` is optional (ngrok inspector is not published by default).
-2. Inside the guest, run `docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler ngrok`
+2. Inside the guest, run `docker compose up -d app queue scheduler ngrok`
 3. Read the HTTPS URL from the ngrok container output or logs (inspector not published by default)
 4. Put that HTTPS URL into Creem webhook settings
 
 ### Local machine runs the full Docker stack
 
 1. Put `NGROK_AUTHTOKEN` in `.env`
-2. Run `docker compose --env-file .env -f docker-compose.frankenphp.yml up -d app queue scheduler ngrok`
+2. Run `docker compose --env-file .env up -d app queue scheduler ngrok`
 3. Read the HTTPS URL from the ngrok container output or logs (inspector not published by default)
 4. Put that HTTPS URL into Creem webhook settings
 
@@ -607,18 +607,18 @@ After running `php artisan vendor:publish`, verify that `config/creem.php` in yo
 - For the current repository, first confirm the simulator-first checks are green: `bash scripts/smoke-simulator-demo.sh`
 - If you maintain a separate `laravel-creem-agent` source checkout, optionally add package-level Telegram checks with `CREEM_AGENT_PACKAGE_REPO=/home/www/laravel-creem-agent bash scripts/smoke-simulator-demo.sh`
 - For user-facing heartbeat checks in this repository, prefer `bash scripts/run-heartbeat.sh --all-stores`
-- In this repository, the HTTP agent endpoints are served by the checked-in demo stack itself after `docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator`, so use direct checks against `http://127.0.0.1:8000/creem-agent/status` and `http://127.0.0.1:8000/creem-agent/chat` without switching to a separate `laravel-creem-agent` checkout
+- In this repository, the HTTP agent endpoints are served by the checked-in demo stack itself after `docker compose up -d app queue scheduler simulator`, so use direct checks against `http://127.0.0.1:8000/creem-agent/status` and `http://127.0.0.1:8000/creem-agent/chat` without switching to a separate `laravel-creem-agent` checkout
 - If OpenClaw runs on another host, expose the app via Nginx/Caddy and update `APP_URL`
 
 ### Webhooks are not arriving
 - Confirm the webhook URL in Creem is `https://YOUR-NGROK-URL/creem/webhook`
 - If using VirtualBox, confirm host `8000` is forwarded to guest `8000` (forwarding `4040` is optional for the ngrok inspector).
-- Confirm the `ngrok` container is running: `docker compose -f docker-compose.frankenphp.yml ps ngrok`
+- Confirm the `ngrok` container is running: `docker compose ps ngrok`
 - Check the ngrok container logs or API for the public URL (inspector is not published by default).
 - Verify `CREEM_WEBHOOK_SECRET` matches the value configured in Creem
 
 ### No sudo on the host
 - Use the current-user standard agent mode from section `8.6`
 - Do not run `openclaw-ansible` without a supported become path
-- Prefer `docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler`
+- Prefer `docker compose up -d app queue scheduler`
 - Use `php artisan serve`, `queue:work`, and `schedule:work` only as fallback

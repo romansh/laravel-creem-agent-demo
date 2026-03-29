@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="$ROOT_DIR/docker-compose.frankenphp.yml"
+COMPOSE=(docker compose --project-directory "$ROOT_DIR")
 
 ensure_simulator_installed() {
   if [ -f "$ROOT_DIR/creem-simulator/composer.json" ] && grep -q '"name": "romansh/laravel-creem-store-simulator"' "$ROOT_DIR/creem-simulator/composer.json"; then
@@ -39,10 +39,10 @@ fi
 
 ensure_simulator_installed
 
-docker compose -f "$COMPOSE_FILE" down --remove-orphans >/dev/null 2>&1 || true
+"${COMPOSE[@]}" down --remove-orphans >/dev/null 2>&1 || true
 
 wait_for_simulator() {
-  docker compose -f "$COMPOSE_FILE" run --rm -T app php -r '
+  "${COMPOSE[@]}" run --rm -T app php -r '
     for ($i = 0; $i < 30; $i++) {
         $body = @file_get_contents("http://simulator/");
         if ($body !== false && str_contains($body, "Creem Simulator")) {
@@ -56,7 +56,7 @@ wait_for_simulator() {
 }
 
 run_simulator() {
-  docker compose -f "$COMPOSE_FILE" run --rm simulator sh -lc "$1"
+  "${COMPOSE[@]}" run --rm simulator sh -lc "$1"
 }
 
 run_agent_package_tests() {
@@ -151,9 +151,9 @@ run_simulator '
 '
 
 echo "[3/6] Run user heartbeat command"
-docker compose -f "$COMPOSE_FILE" up -d simulator >/dev/null
+"${COMPOSE[@]}" up -d simulator >/dev/null
 wait_for_simulator
-docker compose -f "$COMPOSE_FILE" run --rm -T app php artisan creem-agent:heartbeat --force --all-stores
+"${COMPOSE[@]}" run --rm -T app php artisan creem-agent:heartbeat --force --all-stores
 
 echo "[4/6] Run agent Telegram send/receive tests"
 run_agent_package_tests

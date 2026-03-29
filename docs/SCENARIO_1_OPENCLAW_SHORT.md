@@ -48,9 +48,9 @@ Important: the current compose file uses the generated `creem-simulator` app as 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 	bash scripts/install-simulator.sh
-	docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
+	docker compose build app queue scheduler simulator
 	# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
-	docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+	docker compose run --rm simulator sh -lc '
 	git config --global --add safe.directory /app && composer install --no-interaction &&
 	test -f .env || cp .env.example .env &&
 	sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
@@ -94,7 +94,7 @@ CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET=whsec_demo_default
 CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 ```
 
-Docker Compose maps these root values into the `simulator` service from `docker-compose.frankenphp.yml`.
+Docker Compose maps these root values into the `simulator` service from `docker-compose.yml`.
 
 ## OpenClaw Telegram channel
 
@@ -109,7 +109,7 @@ openclaw pairing approve telegram <CODE>
 ## Start stack
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
+docker compose up -d app queue scheduler simulator
 ```
 
 ## Start ngrok later, if needed
@@ -118,7 +118,7 @@ Only do this when you need public webhook delivery from Creem or Telegram. We ex
 
 ```bash
 # Start ngrok container (it still needs the auth token in .env)
-docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
+docker compose --env-file .env up -d ngrok
 
 # Load .env and fail fast if NGROK_URL is not configured
 set -o allexport; test -f .env && source .env || true; set +o allexport
@@ -164,9 +164,9 @@ Before asking for status or payment issues through Telegram or OpenClaw, create 
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
-docker compose -f docker-compose.frankenphp.yml exec simulator \
+docker compose exec simulator \
 	php artisan simulator:advance --sales=3 --new-customers=2 --past-due=2 --cancellations=1 --send-webhooks
-docker compose -f docker-compose.frankenphp.yml exec simulator \
+docker compose exec simulator \
 	php artisan simulator:send-webhook payment.failed
 bash scripts/smoke-simulator-demo.sh
 ```

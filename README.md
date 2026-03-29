@@ -5,7 +5,7 @@ This demo package for `laravel-creem-agent` contains configuration, prompts, and
 
 ## Repository contents
 - `docker/` — Dockerfile and related artifacts (frankenphp, etc.).
-- `docker-compose.frankenphp.yml` — example Docker Compose file for running the demo services, including optional `ngrok` tunneling.
+- `docker-compose.yml` — example Docker Compose file for running the demo services, including optional `ngrok` tunneling.
 - `scripts/install-simulator.sh` — installs `romansh/laravel-creem-store-simulator` into `./creem-simulator` when the simulator app is needed.
 - `docs/` — user-facing setup guides and short scenarios.
 - `.resources/` — internal recording runbooks, full demo scenarios, and planning materials.
@@ -45,9 +45,9 @@ If you are starting from the point where `ngrok` is already up, continue with th
 ```bash
 cd laravel-creem-agent-demo
 bash scripts/install-simulator.sh
-docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
+docker compose build app queue scheduler simulator
 	# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
-	docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+	docker compose run --rm simulator sh -lc '
 	git config --global --add safe.directory /app && composer install --no-interaction &&
 	test -f .env || cp .env.example .env &&
 	sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
@@ -55,7 +55,7 @@ docker compose -f docker-compose.frankenphp.yml build app queue scheduler simula
 	php artisan migrate --seed &&
 	php artisan octane:install --server=frankenphp --no-interaction
 '
-	docker compose -f docker-compose.frankenphp.yml run --rm app sh -lc '
+	docker compose run --rm app sh -lc '
 	git config --global --add safe.directory /app && composer install --no-interaction &&
 	test -f .env || cp .env.example .env &&
 	sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
@@ -67,20 +67,20 @@ docker compose -f docker-compose.frankenphp.yml build app queue scheduler simula
 	php artisan migrate &&
 	php artisan octane:install --server=frankenphp --no-interaction
 '
-docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simulator
+docker compose up -d app queue scheduler simulator
 bash scripts/smoke-simulator-demo.sh
 ```
 
 After that, read the current public tunnel URL from the `ngrok` inspector and use it for Creem or Telegram webhooks.
 
-The checked-in demo now installs `romansh/laravel-creem`, `romansh/laravel-creem-cli`, and `romansh/laravel-creem-agent` into the generated `creem-simulator` app. Heartbeat is available directly in the demo stack through `bash scripts/run-heartbeat.sh` or `docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat`. The wrapper auto-detects whether the current env points at `http://simulator/...` or at a real Creem API URL, so it works for both simulator-backed demos and real-store/OpenClaw setups.
+The checked-in demo now installs `romansh/laravel-creem`, `romansh/laravel-creem-cli`, and `romansh/laravel-creem-agent` into the generated `creem-simulator` app. Heartbeat is available directly in the demo stack through `bash scripts/run-heartbeat.sh` or `docker compose exec app php artisan creem-agent:heartbeat`. The wrapper auto-detects whether the current env points at `http://simulator/...` or at a real Creem API URL, so it works for both simulator-backed demos and real-store/OpenClaw setups.
 
 ## Public webhook tunnel with Docker
 
 When you need a public HTTPS URL for real Creem or Telegram webhooks, run the bundled `ngrok` service instead of installing `ngrok` on the host:
 
 ```bash
-docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
+docker compose --env-file .env up -d ngrok
 # Read the public URL from the ngrok container logs; the inspector is not published by default.
 ```
 
@@ -88,7 +88,7 @@ Alternatively, load `.env` into your shell for the current session (bash/zsh):
 
 ```bash
 set -o allexport; source .env; set +o allexport
-docker compose -f docker-compose.frankenphp.yml up -d ngrok
+docker compose up -d ngrok
 ```
 
 Use the returned HTTPS URL as the base for:
@@ -168,16 +168,16 @@ That interactive Telegram stage is separate from the checked-in demo compose top
 
 
 ## Useful commands
-- Build and start containers: `docker compose -f docker-compose.frankenphp.yml up --build`
-- Stop containers: `docker compose -f docker-compose.frankenphp.yml down`
-- Follow logs: `docker compose -f docker-compose.frankenphp.yml logs -f`
-- Start bundled ngrok: `docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok`
+- Build and start containers: `docker compose up --build`
+- Stop containers: `docker compose down`
+- Follow logs: `docker compose logs -f`
+- Start bundled ngrok: `docker compose --env-file .env up -d ngrok`
 <!-- ngrok web UI is not published by default in this configuration -->
 
 The compose file uses normal Docker `ports:` publishing. Start the stack with:
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml up -d --build
+docker compose up -d --build
 ```
 
 ## Troubleshooting & tips

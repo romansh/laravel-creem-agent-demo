@@ -1,0 +1,91 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/frankenphp/Dockerfile
+    working_dir: /app/creem-simulator
+    volumes:
+      - .:/app
+      - ${REPO_MOUNT:-/home/www}:/home/www:delegated
+      - creem_demo_sqlite:/var/lib/creem-simulator
+      - app_octane_json_demo:/app/creem-simulator/storage/octane-state
+      - app_octane_json_demo:/app/creem-simulator/storage/logs
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
+    ports:
+      - "8000:80"
+    command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80 --admin-port=2019
+
+  queue:
+    build:
+      context: .
+      dockerfile: docker/frankenphp/Dockerfile
+    working_dir: /app/creem-simulator
+    volumes:
+      - .:/app
+      - ${REPO_MOUNT:-/home/www}:/home/www:delegated
+      - creem_demo_sqlite:/var/lib/creem-simulator
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
+    command: php artisan queue:work --queue=creem-agent --tries=3 --verbose
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/frankenphp/Dockerfile
+    working_dir: /app/creem-simulator
+    volumes:
+      - .:/app
+      - ${REPO_MOUNT:-/home/www}:/home/www:delegated
+      - creem_demo_sqlite:/var/lib/creem-simulator
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
+    command: sh -lc "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    depends_on:
+      - app
+    entrypoint:
+      - /bin/sh
+      - -lc
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+      NGROK_URL: ${NGROK_URL:-}
+    command: >
+      if [ -n "$NGROK_URL" ]; then
+        exec ngrok http app:80 --log=stdout --url "$NGROK_URL";
+      fi;
+      exec ngrok http app:80 --log=stdout
+
+  simulator:
+    build:
+      context: ./creem-simulator
+      dockerfile: docker/frankenphp/Dockerfile
+    working_dir: /app
+    volumes:
+      - ./creem-simulator:/app
+      - creem_demo_sqlite:/var/lib/creem-simulator
+      - app_octane_json_demo:/app/storage/octane-state
+      - app_octane_json_demo:/app/storage/logs
+    expose:
+      - "80"
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/lib/creem-simulator/database.sqlite
+      CREEM_SIMULATOR_DEFAULT_API_KEY: ${CREEM_SIMULATOR_DEFAULT_API_KEY}
+      CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET: ${CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET}
+      CREEM_SIMULATOR_SECONDARY_API_KEY: ${CREEM_SIMULATOR_SECONDARY_API_KEY}
+      CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET: ${CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET}
+      CREEM_SIMULATOR_AGENT_WEBHOOK_URL: ${CREEM_SIMULATOR_AGENT_WEBHOOK_URL}
+      CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET: ${CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET}
+      CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS: ${CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS}
+    command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80 --admin-port=2019
+
+volumes:
+  creem_demo_sqlite:
+  app_octane_json_demo:
+    driver: local

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="${ROOT_DIR}/docker-compose.frankenphp.yml"
+COMPOSE=(docker compose --project-directory "${ROOT_DIR}")
 
 read_config_value() {
   local key="$1"
@@ -40,7 +40,7 @@ needs_simulator() {
 }
 
 wait_for_simulator() {
-  docker compose -f "${COMPOSE_FILE}" run --rm -T app php -r '
+  "${COMPOSE[@]}" run --rm -T app php -r '
     $ready = false;
     for ($i = 0; $i < 30; $i++) {
         $body = @file_get_contents("http://simulator/");
@@ -61,12 +61,12 @@ fi
 "${ROOT_DIR}/scripts/install-simulator.sh"
 
 if needs_simulator; then
-  docker compose -f "${COMPOSE_FILE}" up -d simulator >/dev/null
+  "${COMPOSE[@]}" up -d simulator >/dev/null
   wait_for_simulator
 fi
 
 if [ -t 0 ] && [ -t 1 ]; then
-  docker compose -f "${COMPOSE_FILE}" run --rm app php artisan creem-agent:heartbeat "$@"
+  "${COMPOSE[@]}" run --rm app php artisan creem-agent:heartbeat "$@"
 else
-  docker compose -f "${COMPOSE_FILE}" run --rm -T app php artisan creem-agent:heartbeat "$@"
+  "${COMPOSE[@]}" run --rm -T app php artisan creem-agent:heartbeat "$@"
 fi

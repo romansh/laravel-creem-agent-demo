@@ -69,9 +69,9 @@ If `ngrok` is already running and you want the currently supported demo flow fro
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/install-simulator.sh
-docker compose -f docker-compose.frankenphp.yml build app queue scheduler simulator
+docker compose build app queue scheduler simulator
  # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
- docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+ docker compose run --rm simulator sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&
   sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
@@ -82,14 +82,14 @@ docker compose -f docker-compose.frankenphp.yml build app queue scheduler simula
 bash scripts/smoke-simulator-demo.sh
 ```
 
-Important: the current compose file runs the generated `creem-simulator` app as the shared Laravel runtime for `app`, `queue`, and `scheduler`. The demo installer now places `laravel-creem-agent` inside that app, so heartbeat is available directly through `bash scripts/run-heartbeat.sh` or `docker compose -f docker-compose.frankenphp.yml exec app php artisan creem-agent:heartbeat`.
+Important: the current compose file runs the generated `creem-simulator` app as the shared Laravel runtime for `app`, `queue`, and `scheduler`. The demo installer now places `laravel-creem-agent` inside that app, so heartbeat is available directly through `bash scripts/run-heartbeat.sh` or `docker compose exec app php artisan creem-agent:heartbeat`.
 
 If you only need the simulator itself:
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
 bash scripts/install-simulator.sh
-docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
+docker compose run --rm simulator sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&
   sqlite_db="${DB_DATABASE:-/var/lib/creem-simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
@@ -97,7 +97,7 @@ docker compose -f docker-compose.frankenphp.yml run --rm simulator sh -lc '
   php artisan migrate --seed &&
   php artisan octane:install --server=frankenphp --no-interaction
 '
-docker compose -f docker-compose.frankenphp.yml up -d simulator
+docker compose up -d simulator
 
 Octane server note
 
@@ -140,9 +140,9 @@ This works entirely on the internal Docker network.
 ## Main workflow
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml exec simulator php artisan simulator:seed-demo --reset
-docker compose -f docker-compose.frankenphp.yml exec simulator php artisan simulator:advance --sales=3 --new-customers=2 --past-due=2 --cancellations=1 --send-webhooks
-docker compose -f docker-compose.frankenphp.yml exec simulator php artisan simulator:send-webhook payment.failed
+docker compose exec simulator php artisan simulator:seed-demo --reset
+docker compose exec simulator php artisan simulator:advance --sales=3 --new-customers=2 --past-due=2 --cancellations=1 --send-webhooks
+docker compose exec simulator php artisan simulator:send-webhook payment.failed
 bash scripts/smoke-simulator-demo.sh
 ```
 
@@ -194,5 +194,5 @@ Once this flow is green, move to the real-Creem runbooks for public webhook deli
 ## Manual webhook test
 
 ```bash
-docker compose -f docker-compose.frankenphp.yml exec simulator php artisan simulator:send-webhook payment.failed
+docker compose exec simulator php artisan simulator:send-webhook payment.failed
 ```
