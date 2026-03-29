@@ -84,47 +84,41 @@ docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simula
 
 ## Start ngrok later, if needed
 
-Only do this when you need public webhook delivery from Creem or Telegram:
+Only do this when you need public webhook delivery from Creem or Telegram. The recommended approach is to provision the public callback URL as part of your configuration and put it into `.env` as `NGROK_URL`. This lets webhook setup commands reference a stable URL instead of attempting to parse container logs at runtime.
 
 ```bash
+# Start ngrok container (it still needs the auth token in .env)
 docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
-NGROK_URL="$(docker compose -f docker-compose.frankenphp.yml logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
-test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN in .env and ngrok logs"; false; }
-echo "$NGROK_URL"
+
+# Load .env and validate required values
+set -o allexport; test -f .env && source .env || true; set +o allexport
+test -n "${NGROK_URL:-}" || { echo "NGROK_URL not set in .env; set NGROK_URL=https://your-id.ngrok.app"; false; }
+echo "Using public URL: $NGROK_URL"
 ```
 
-Creem webhook URL:
+Creem webhook URL (use the `NGROK_URL` value from your `.env`):
 
 ```text
-https://YOUR-NGROK-URL/creem/webhook
+${NGROK_URL}/creem/webhook
 ```
 
-The same base URL is used for the Telegram webhook:
-
-After you get `YOUR-NGROK-URL`, use it for every public callback:
-
-- Creem webhook: `https://YOUR-NGROK-URL/creem/webhook`
-- Telegram webhook: part of the intended target architecture; today end users should rely on the smoke runner, while maintainers may add package tests from a separate `laravel-creem-agent` checkout
-- Simulator callback, if you want simulator to call the public app URL
-
-The same `.env` file can be loaded into your shell with `set -o allexport; source .env; set +o allexport` before running compose if you prefer not to pass `--env-file` explicitly. If `NGROK_URL` is empty or logs show `ERR_NGROK_105`, fix `NGROK_AUTHTOKEN` in `.env` first.
+The same base URL is used for the Telegram webhook and for simulator callbacks when you want the simulator to call the public app URL. Load `.env` in your shell before running the webhook commands so both `CREEM_AGENT_TELEGRAM_TOKEN` and `NGROK_URL` are available.
 
 Telegram webhook URL:
 
 ```bash
-Before running the command below, load the demo `.env` into your shell so the token variable is available, or export the token manually:
+Before running the command below, load the demo `.env` into your shell so the token and `NGROK_URL` variables are available, or export them manually. Example:
 
 ```bash
 # Load variables from the demo .env (if present)
 set -o allexport; test -f .env && source .env || true; set +o allexport
 
-# Or set the token manually:
-# export CREEM_AGENT_TELEGRAM_TOKEN=YOUR_BOT_TOKEN
-```
+# Fail fast if required vars are missing
+test -n "${CREEM_AGENT_TELEGRAM_TOKEN:-}" || { echo "CREEM_AGENT_TELEGRAM_TOKEN not set in .env"; false; }
+test -n "${NGROK_URL:-}" || { echo "NGROK_URL not set in .env; set NGROK_URL=https://your-id.ngrok.app"; false; }
 
-```bash
 curl -s -X POST "https://api.telegram.org/bot${CREEM_AGENT_TELEGRAM_TOKEN}/setWebhook" \
-  -d "url=https://YOUR-NGROK-URL/creem-agent/telegram/webhook"
+  -d "url=${NGROK_URL}/creem-agent/telegram/webhook"
 ```
 
 ## Verify simulator-first approach

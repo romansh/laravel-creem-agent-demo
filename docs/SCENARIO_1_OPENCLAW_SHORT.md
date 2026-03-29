@@ -114,23 +114,25 @@ docker compose -f docker-compose.frankenphp.yml up -d app queue scheduler simula
 
 ## Start ngrok later, if needed
 
-Only do this when you need public webhook delivery from Creem or Telegram:
+Only do this when you need public webhook delivery from Creem or Telegram. We expect the public callback URL to be configured up-front in `.env` as `NGROK_URL` so webhook commands can reference it directly.
 
 ```bash
+# Start ngrok container (it still needs the auth token in .env)
 docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
-NGROK_URL="$(docker compose -f docker-compose.frankenphp.yml logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
-test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN in .env and ngrok logs"; false; }
-echo "$NGROK_URL"
+
+# Load .env and fail fast if NGROK_URL is not configured
+set -o allexport; test -f .env && source .env || true; set +o allexport
+test -n "${NGROK_URL:-}" || { echo "NGROK_URL not set in .env; set NGROK_URL=https://your-id.ngrok.app"; false; }
+echo "Using public URL: $NGROK_URL"
 ```
 
-Creem webhook URL:
+Creem webhook URL (use the `NGROK_URL` value from your `.env`):
 
 ```text
-https://YOUR-NGROK-URL/creem/webhook
+${NGROK_URL}/creem/webhook
 ```
 
-
-If `NGROK_URL` is empty or the logs show `ERR_NGROK_105`, set a valid `NGROK_AUTHTOKEN` in `.env` and rerun the command above.
+If `NGROK_URL` is empty or the ngrok logs show `ERR_NGROK_105`, set a valid `NGROK_AUTHTOKEN` and `NGROK_URL` in `.env` and re-run the steps above.
 
 After you get `YOUR-NGROK-URL`, use it anywhere a public callback is required, especially the Creem webhook endpoint.
 

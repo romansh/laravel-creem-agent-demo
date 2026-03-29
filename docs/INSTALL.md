@@ -58,7 +58,7 @@ Below are concise step sequences for each primary flow.
 
 ### Flow A — Docker on the host (fastest)
 
-When to fill tokens and variables: copy `.env.example` to `.env` before the init/install commands below and do a one-time setup of the values you plan to use. Put real tokens, Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same `.env` so the whole stack uses one consistent configuration file.
+When to fill tokens and variables: copy `.env.example` to `.env` before the init/install commands below and do a one-time setup of the values you plan to use. Put real tokens, Telegram settings, secondary-store credentials, and `NGROK_AUTHTOKEN` into that same `.env` so the whole stack uses one consistent configuration file. Also set `NGROK_URL` in `.env` to the public ngrok URL you will use for webhooks (for example `NGROK_URL=https://abcd1234.ngrok.app`).
 
 `test -f .env || cp .env.example .env` in scripts is a fallback only; if you already have custom values, the command should not overwrite them. If you run automation with no `.env`, this fallback ensures the file exists.
 
@@ -68,6 +68,17 @@ Simulator `.env` handling for demo runs
 - This automatic copy-and-generate behavior is intended only for local/demo/CI use. For production or long-running environments, provide explicit secrets (`APP_KEY`, webhook URL/secret, API keys) via environment variables, Docker secrets, or your orchestration platform. Do not commit real secrets to the repository.
 
 If you plan to use multiple Creem stores (multi-store demo), add the secondary store variables to `.env` during that same setup step and then verify that the published `config/creem.php` maps those variables to the `secondary` profile. Look for `CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, and `CREEM_SECONDARY_API_URL` in the project `.env.example`.
+
+Using a fixed ngrok URL from `.env`:
+
+```bash
+# Load variables from the demo .env (if present)
+set -o allexport; test -f .env && source .env || true; set +o allexport
+
+# Fail fast if NGROK_URL is not configured
+test -n "${NGROK_URL:-}" || { echo "NGROK_URL not set in .env; set NGROK_URL=https://your-id.ngrok.app"; false; }
+echo "Using public URL: $NGROK_URL"
+```
 
 ### Laravel AI / LLM configuration
 The demo `.env.example` already includes the full Laravel AI block. Configure the agent-facing provider and model in `.env` like this:
