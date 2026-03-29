@@ -1,37 +1,8 @@
 services:
-  migrate:
-    build:
-      context: .
-      dockerfile: docker/frankenphp/Dockerfile
-    env_file:
-      - ./app/.env
-    working_dir: /app
-    volumes:
-      - ./app:/app
-      - ./scripts:/scripts:ro
-      - ${REPO_MOUNT:-/home/www}:/home/www:delegated
-      - app_sqlite_demo:/var/lib/agent-app
-      - app_octane_state_demo:/app/storage/octane-state
-      - app_logs_demo:/app/storage/logs
-    environment:
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /var/lib/agent-app/database.sqlite
-    command:
-      - /scripts/boot-app-runtime.sh
-      - php
-      - artisan
-      - migrate
-      - --force
-      - --no-interaction
-    restart: "no"
-
   app:
     build:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
     env_file:
       - ./app/.env
     working_dir: /app
@@ -45,6 +16,7 @@ services:
     environment:
       DB_CONNECTION: sqlite
       DB_DATABASE: /var/lib/agent-app/database.sqlite
+      RUN_MIGRATIONS: "1"
     ports:
       - "8000:80"
     command:
@@ -68,8 +40,8 @@ services:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      app:
+        condition: service_healthy
     env_file:
       - ./app/.env
     working_dir: /app
@@ -101,8 +73,8 @@ services:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      app:
+        condition: service_healthy
     env_file:
       - ./app/.env
     working_dir: /app
