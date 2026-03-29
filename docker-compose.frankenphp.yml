@@ -55,11 +55,7 @@ services:
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
       NGROK_URL: ${NGROK_URL:-}
-    command: >
-      if [ -n "$NGROK_URL" ]; then
-        exec ngrok http app:80 --log=stdout --url "$NGROK_URL";
-      fi;
-      exec ngrok http app:80 --log=stdout
+    command: 'if [ -n "$NGROK_URL" ]; then exec ngrok http app:80 --log=stdout --url "$NGROK_URL"; else exec ngrok http app:80 --log=stdout; fi'
 
   simulator:
     build:
