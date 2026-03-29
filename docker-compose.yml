@@ -8,6 +8,7 @@ services:
     working_dir: /app
     volumes:
       - ./app:/app
+      - ./scripts:/scripts:ro
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
       - app_sqlite_demo:/var/lib/agent-app
       - app_octane_state_demo:/app/storage/octane-state
@@ -17,7 +18,15 @@ services:
       DB_DATABASE: /var/lib/agent-app/database.sqlite
     ports:
       - "8000:80"
-    command: php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80 --admin-port=2019
+    command:
+      - /scripts/boot-app-runtime.sh
+      - php
+      - artisan
+      - octane:start
+      - --server=frankenphp
+      - --host=0.0.0.0
+      - --port=80
+      - --admin-port=2019
 
   queue:
     build:
@@ -28,12 +37,20 @@ services:
     working_dir: /app
     volumes:
       - ./app:/app
+      - ./scripts:/scripts:ro
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
       - app_sqlite_demo:/var/lib/agent-app
     environment:
       DB_CONNECTION: sqlite
       DB_DATABASE: /var/lib/agent-app/database.sqlite
-    command: php artisan queue:work --queue=creem-agent --tries=3 --verbose
+    command:
+      - /scripts/boot-app-runtime.sh
+      - php
+      - artisan
+      - queue:work
+      - --queue=creem-agent
+      - --tries=3
+      - --verbose
     healthcheck:
       test: ["CMD-SHELL", "tr '\\0' ' ' </proc/1/cmdline | grep -q 'queue:work'"]
       interval: 30s
@@ -50,12 +67,17 @@ services:
     working_dir: /app
     volumes:
       - ./app:/app
+      - ./scripts:/scripts:ro
       - ${REPO_MOUNT:-/home/www}:/home/www:delegated
       - app_sqlite_demo:/var/lib/agent-app
     environment:
       DB_CONNECTION: sqlite
       DB_DATABASE: /var/lib/agent-app/database.sqlite
-    command: sh -lc "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
+    command:
+      - /scripts/boot-app-runtime.sh
+      - sh
+      - -lc
+      - while true; do php artisan schedule:run --no-interaction; sleep 60; done
     healthcheck:
       test: ["CMD-SHELL", "tr '\\0' ' ' </proc/1/cmdline | grep -q 'schedule:run'"]
       interval: 30s
