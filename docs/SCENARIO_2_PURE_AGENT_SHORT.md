@@ -88,7 +88,9 @@ Only do this when you need public webhook delivery from Creem or Telegram:
 
 ```bash
 docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
-# The public URL can be read from the ngrok container logs; the inspector is not published by default.
+NGROK_URL="$(docker compose -f docker-compose.frankenphp.yml logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
+test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN in .env and ngrok logs"; false; }
+echo "$NGROK_URL"
 ```
 
 Creem webhook URL:
@@ -105,7 +107,7 @@ After you get `YOUR-NGROK-URL`, use it for every public callback:
 - Telegram webhook: part of the intended target architecture; today end users should rely on the smoke runner, while maintainers may add package tests from a separate `laravel-creem-agent` checkout
 - Simulator callback, if you want simulator to call the public app URL
 
-The same `.env` file can be loaded into your shell with `set -o allexport; source .env; set +o allexport` before running compose if you prefer not to pass `--env-file` explicitly.
+The same `.env` file can be loaded into your shell with `set -o allexport; source .env; set +o allexport` before running compose if you prefer not to pass `--env-file` explicitly. If `NGROK_URL` is empty or logs show `ERR_NGROK_105`, fix `NGROK_AUTHTOKEN` in `.env` first.
 
 Telegram webhook URL:
 

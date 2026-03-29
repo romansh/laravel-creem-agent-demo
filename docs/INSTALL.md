@@ -456,12 +456,18 @@ Typical flow:
 # Start the ngrok container using the token already stored in `.env`
 docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
 
-# Read the public HTTPS URL from the ngrok container logs or API; the local inspector is not published by default.
+# Extract the public HTTPS URL from the ngrok container logs.
+# If this prints nothing, check `.env` for `NGROK_AUTHTOKEN` and inspect `docker compose -f docker-compose.frankenphp.yml logs ngrok`.
+NGROK_URL="$(docker compose -f docker-compose.frankenphp.yml logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
+test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN and ngrok logs"; false; }
+echo "$NGROK_URL"
 
 # Or load `.env` into the current shell session before starting compose:
 set -o allexport; source .env; set +o allexport
 docker compose -f docker-compose.frankenphp.yml up -d ngrok
-# The public URL can be read from the ngrok container logs; the inspector is not published by default.
+NGROK_URL="$(docker compose -f docker-compose.frankenphp.yml logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
+test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN and ngrok logs"; false; }
+echo "$NGROK_URL"
 ```
 
 Take the generated HTTPS URL and configure Creem webhooks to:

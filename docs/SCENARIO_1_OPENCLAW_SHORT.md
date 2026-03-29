@@ -118,7 +118,9 @@ Only do this when you need public webhook delivery from Creem or Telegram:
 
 ```bash
 docker compose --env-file .env -f docker-compose.frankenphp.yml up -d ngrok
-# The public ngrok URL can be read from the ngrok container logs; the local inspector is not published by default.
+NGROK_URL="$(docker compose -f docker-compose.frankenphp.yml logs --no-color ngrok 2>&1 | grep -Eo 'https://[A-Za-z0-9.-]+\.ngrok(-free)?\.app' | tail -n 1)"
+test -n "$NGROK_URL" || { echo "ngrok URL not found; check NGROK_AUTHTOKEN in .env and ngrok logs"; false; }
+echo "$NGROK_URL"
 ```
 
 Creem webhook URL:
@@ -128,7 +130,7 @@ https://YOUR-NGROK-URL/creem/webhook
 ```
 
 
-The `YOUR-NGROK-URL` value can be obtained from the ngrok container output; the inspector is not published by default.
+If `NGROK_URL` is empty or the logs show `ERR_NGROK_105`, set a valid `NGROK_AUTHTOKEN` in `.env` and rerun the command above.
 
 After you get `YOUR-NGROK-URL`, use it anywhere a public callback is required, especially the Creem webhook endpoint.
 
