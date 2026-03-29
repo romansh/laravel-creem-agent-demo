@@ -15,12 +15,18 @@ AGENT_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/creem-agent.php"
 BOOTSTRAP_APP_TEMPLATE="${ROOT_DIR}/stubs/bootstrap-app.php"
 VIEW_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/view.php"
 LOCAL_AGENT_REPO="${CREEM_AGENT_PACKAGE_REPO:-${ROOT_DIR}/../laravel-creem-agent}"
+LEGACY_ROOT_ENV_FILE="${ROOT_DIR}/.env"
 
 app_ready() {
   [ -f "${APP_DIR}/artisan" ] && [ -f "${APP_DIR}/composer.json" ]
 }
 
 ensure_app_env() {
+  if [ ! -f "${APP_DIR}/.env" ] && [ -f "${LEGACY_ROOT_ENV_FILE}" ]; then
+    mkdir -p "${APP_DIR}"
+    mv "${LEGACY_ROOT_ENV_FILE}" "${APP_DIR}/.env"
+  fi
+
   if [ ! -f "${APP_DIR}/.env" ] && [ -f "${ENV_TEMPLATE}" ]; then
     cp "${ENV_TEMPLATE}" "${APP_DIR}/.env"
   fi
@@ -111,10 +117,19 @@ EOF
 
 create_app() {
   local tmp_dir
+  local existing_env_backup
 
   tmp_dir="$(mktemp -d)"
+  existing_env_backup=""
+
+  if [ -f "${APP_DIR}/.env" ]; then
+    existing_env_backup="$(mktemp)"
+    cp "${APP_DIR}/.env" "$existing_env_backup"
+  fi
+
   composer create-project --no-interaction --prefer-dist "${APP_PACKAGE}" "$tmp_dir" "${APP_VERSION}"
   find "${APP_DIR}" -mindepth 1 -maxdepth 1 \
+    ! -name '.env' \
     ! -name '.env.example' \
     ! -name 'README.md' \
     ! -name '.gitignore' \
@@ -122,6 +137,10 @@ create_app() {
   cp -a "$tmp_dir"/. "${APP_DIR}"/
   rm -rf "$tmp_dir"
   cp "${ENV_TEMPLATE}" "${APP_DIR}/.env.example"
+
+  if [ -n "$existing_env_backup" ] && [ -f "$existing_env_backup" ]; then
+    mv "$existing_env_backup" "${APP_DIR}/.env"
+  fi
 }
 
 if ! command -v composer >/dev/null 2>&1; then

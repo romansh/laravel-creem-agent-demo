@@ -54,7 +54,8 @@ CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=true
 
 Simulator `.env` handling
 - The simulator files are installed on demand via `bash scripts/install-simulator.sh` into `./simulator`.
-- For local demo and CI runs you do not need to manually create or edit `simulator/.env`. The provided scripts and automation copy `simulator/.env.example` to `simulator/.env` when `.env` is missing and run `php artisan key:generate --force` inside the simulator container so the app has a valid `APP_KEY` for demo use.
+- For local demo and CI runs you do not need to manually create or edit `simulator/.env`. The provided scripts and automation copy `simulator/.env.example` to `simulator/.env` when `.env` is missing, then sync shared values from `app/.env`, including `APP_KEY`.
+- When you want both runtimes to share one logical environment file, edit `app/.env` and rerun `bash scripts/install-simulator.sh` after changing values, or use `bash scripts/regenerate-app-key.sh` when rotating `APP_KEY`.
 - For production or persistent deployments, supply `APP_KEY`, webhook URL/secret, and API keys explicitly via environment variables, Docker/Kubernetes secrets, or your secret manager.
 
 

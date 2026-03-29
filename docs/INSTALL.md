@@ -64,7 +64,9 @@ Use `app/.env` as the single source of truth for the demo app. Initialize it wit
 
 Simulator `.env` handling for demo runs
 - The simulator is no longer checked into this repository. Install it into `./simulator` with `bash scripts/install-simulator.sh` before Docker builds or smoke runs.
-- After installation, you do not need to manually create or edit `simulator/.env` during local demo or smoke runs. `bash scripts/install-simulator.sh` syncs the relevant values from `app/.env`, and the smoke script will generate an application key inside the simulator container when needed.
+- After installation, you do not need to manually create or edit `simulator/.env` during local demo or smoke runs. `bash scripts/install-simulator.sh` syncs the relevant values from `app/.env`, including `APP_KEY`.
+- If you want one logical `.env` for both apps, edit only `app/.env` and treat `simulator/.env` as a generated mirror for simulator runtime needs.
+- To rotate the shared Laravel application key, run `bash scripts/regenerate-app-key.sh`. It regenerates `APP_KEY` in `app/.env` and then syncs the same key into `simulator/.env`.
 - This automatic copy-and-generate behavior is intended only for local/demo/CI use. For production or long-running environments, provide explicit secrets (`APP_KEY`, webhook URL/secret, API keys) via environment variables, Docker secrets, or your orchestration platform. Do not commit real secrets to the repository.
 
 If you plan to use multiple Creem stores (multi-store demo), add the secondary store variables to `app/.env` during that same setup step and then verify that the published `config/creem.php` maps those variables to the `secondary` profile. Look for `CREEM_SECONDARY_API_KEY`, `CREEM_SECONDARY_WEBHOOK_SECRET`, and `CREEM_SECONDARY_API_URL` in `app/.env.example`.

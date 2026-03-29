@@ -110,13 +110,21 @@ sync_demo_runtime_files() {
   fi
 
   sync_env_value CREEM_TEST_MODE
+  sync_env_value APP_KEY
   sync_env_value CREEM_API_KEY
   sync_env_value CREEM_WEBHOOK_SECRET
   sync_env_value CREEM_API_URL
   sync_env_value CREEM_TEST_API_URL
+  sync_env_value CREEM_SIMULATOR_DEFAULT_API_KEY
+  sync_env_value CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET
   sync_env_value CREEM_SECONDARY_API_KEY
   sync_env_value CREEM_SECONDARY_WEBHOOK_SECRET
   sync_env_value CREEM_SECONDARY_API_URL
+  sync_env_value CREEM_SIMULATOR_SECONDARY_API_KEY
+  sync_env_value CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET
+  sync_env_value CREEM_SIMULATOR_AGENT_WEBHOOK_URL
+  sync_env_value CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET
+  sync_env_value CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS
   sync_env_value CREEM_AGENT_DEFAULT_STORE
   sync_env_value CREEM_AGENT_TELEGRAM_MODE
   sync_env_value CREEM_AGENT_TELEGRAM_TOKEN
