@@ -49,13 +49,10 @@ services:
     image: ngrok/ngrok:latest
     depends_on:
       - app
-    entrypoint:
-      - /bin/sh
-      - -lc
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
       NGROK_URL: ${NGROK_URL:-}
-    command: 'if [ -n "$NGROK_URL" ]; then exec ngrok http app:80 --log=stdout --url "$NGROK_URL"; else exec ngrok http app:80 --log=stdout; fi'
+    entrypoint: sh -c 'if [ -n "$$NGROK_URL" ]; then exec ngrok http app:80 --log=stdout --url "$$NGROK_URL"; else exec ngrok http app:80 --log=stdout; fi'
 
   simulator:
     build:
