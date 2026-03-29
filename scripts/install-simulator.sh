@@ -10,6 +10,8 @@ CREEM_PACKAGE_VERSION="${CREEM_PACKAGE_VERSION:-^1.2}"
 CREEM_CLI_PACKAGE_VERSION="${CREEM_CLI_PACKAGE_VERSION:-^1.2}"
 CREEM_AGENT_PACKAGE_VERSION="${CREEM_AGENT_PACKAGE_VERSION:-^1.2}"
 AGENT_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/creem-agent.php"
+BOOTSTRAP_APP_TEMPLATE="${ROOT_DIR}/stubs/bootstrap-app.php"
+VIEW_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/view.php"
 
 ensure_root_env() {
   if [ ! -f "${ROOT_DIR}/.env" ] && [ -f "${ROOT_DIR}/.env.example" ]; then
@@ -82,9 +84,24 @@ sync_demo_runtime_files() {
   local migration_dst="${SIMULATOR_DIR}/database/migrations/2025_01_01_000001_create_creem_agent_logs_table.php"
 
   test -f "${SIMULATOR_DIR}/.env" || cp "${SIMULATOR_DIR}/.env.example" "${SIMULATOR_DIR}/.env"
+  mkdir -p \
+    "${SIMULATOR_DIR}/bootstrap/cache" \
+    "${SIMULATOR_DIR}/storage/framework/cache" \
+    "${SIMULATOR_DIR}/storage/framework/sessions" \
+    "${SIMULATOR_DIR}/storage/framework/testing" \
+    "${SIMULATOR_DIR}/storage/framework/views" \
+    "${SIMULATOR_DIR}/storage/logs"
 
   if [ -f "${AGENT_CONFIG_TEMPLATE}" ]; then
     cp "${AGENT_CONFIG_TEMPLATE}" "${SIMULATOR_DIR}/config/creem-agent.php"
+  fi
+
+  if [ -f "${BOOTSTRAP_APP_TEMPLATE}" ]; then
+    cp "${BOOTSTRAP_APP_TEMPLATE}" "${SIMULATOR_DIR}/bootstrap/app.php"
+  fi
+
+  if [ -f "${VIEW_CONFIG_TEMPLATE}" ]; then
+    cp "${VIEW_CONFIG_TEMPLATE}" "${SIMULATOR_DIR}/config/view.php"
   fi
 
   if [ -f "$migration_src" ]; then
