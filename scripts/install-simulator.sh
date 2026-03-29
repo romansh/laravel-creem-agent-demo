@@ -12,6 +12,7 @@ CREEM_AGENT_PACKAGE_VERSION="${CREEM_AGENT_PACKAGE_VERSION:-^1.2}"
 AGENT_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/creem-agent.php"
 BOOTSTRAP_APP_TEMPLATE="${ROOT_DIR}/stubs/bootstrap-app.php"
 VIEW_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/view.php"
+LOCAL_AGENT_REPO="${CREEM_AGENT_PACKAGE_REPO:-${ROOT_DIR}/../laravel-creem-agent}"
 
 ensure_root_env() {
   if [ ! -f "${ROOT_DIR}/.env" ] && [ -f "${ROOT_DIR}/.env.example" ]; then
@@ -138,6 +139,22 @@ sync_demo_runtime_files() {
   sync_env_value OPENROUTER_API_KEY
   sync_env_value OLLAMA_API_KEY
   sync_env_value OLLAMA_BASE_URL
+
+  if [ -d "${LOCAL_AGENT_REPO}/src" ] && [ -d "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src" ]; then
+    mkdir -p \
+      "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Heartbeat" \
+      "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Listeners" \
+      "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Notifications" \
+      "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Support"
+
+    cp "${LOCAL_AGENT_REPO}/src/CreemAgentServiceProvider.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/CreemAgentServiceProvider.php"
+    cp "${LOCAL_AGENT_REPO}/src/Heartbeat/Reporter.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Heartbeat/Reporter.php"
+    cp "${LOCAL_AGENT_REPO}/src/Listeners/CreemWebhookTelegramNotifier.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Listeners/CreemWebhookTelegramNotifier.php"
+    cp "${LOCAL_AGENT_REPO}/src/Notifications/FirstHeartbeat.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Notifications/FirstHeartbeat.php"
+    cp "${LOCAL_AGENT_REPO}/src/Notifications/HeartbeatAlert.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Notifications/HeartbeatAlert.php"
+    cp "${LOCAL_AGENT_REPO}/src/Notifications/HeartbeatSummary.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Notifications/HeartbeatSummary.php"
+    cp "${LOCAL_AGENT_REPO}/src/Support/TelegramMessageSender.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Support/TelegramMessageSender.php"
+  fi
 }
 
 if ! command -v composer >/dev/null 2>&1; then

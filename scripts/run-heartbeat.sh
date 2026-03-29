@@ -5,6 +5,30 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE=(docker compose --project-directory "${ROOT_DIR}")
 
+service_container_id() {
+  "${COMPOSE[@]}" ps -q "$1" 2>/dev/null | head -n1
+}
+
+service_running() {
+  local container_id
+
+  container_id="$(service_container_id "$1")"
+
+  if [ -z "$container_id" ]; then
+    return 1
+  fi
+
+  [ "$(docker inspect -f '{{.State.Running}}' "$container_id" 2>/dev/null || true)" = "true" ]
+}
+
+ensure_service_running() {
+  if service_running "$1"; then
+    return 0
+  fi
+
+  "${COMPOSE[@]}" up -d "$1" >/dev/null
+}
+
 read_config_value() {
   local key="$1"
   local value="${!key:-}"
@@ -40,7 +64,7 @@ needs_simulator() {
 }
 
 wait_for_simulator() {
-  "${COMPOSE[@]}" run --rm -T app php -r '
+  "${COMPOSE[@]}" exec -T app php -r '
     $ready = false;
     for ($i = 0; $i < 30; $i++) {
         $body = @file_get_contents("http://simulator/");
@@ -61,12 +85,15 @@ fi
 "${ROOT_DIR}/scripts/install-simulator.sh"
 
 if needs_simulator; then
-  "${COMPOSE[@]}" up -d simulator >/dev/null
+  ensure_service_running app
+  ensure_service_running simulator
   wait_for_simulator
+else
+  ensure_service_running app
 fi
 
 if [ -t 0 ] && [ -t 1 ]; then
-  "${COMPOSE[@]}" run --rm app php artisan creem-agent:heartbeat "$@"
+  "${COMPOSE[@]}" exec app php artisan creem-agent:heartbeat "$@"
 else
-  "${COMPOSE[@]}" run --rm -T app php artisan creem-agent:heartbeat "$@"
+  "${COMPOSE[@]}" exec -T app php artisan creem-agent:heartbeat "$@"
 fi

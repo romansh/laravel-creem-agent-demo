@@ -30,6 +30,12 @@ services:
       DB_CONNECTION: sqlite
       DB_DATABASE: /var/lib/creem-simulator/database.sqlite
     command: php artisan queue:work --queue=creem-agent --tries=3 --verbose
+    healthcheck:
+      test: ["CMD-SHELL", "tr '\\0' ' ' </proc/1/cmdline | grep -q 'queue:work'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   scheduler:
     build:
@@ -44,6 +50,12 @@ services:
       DB_CONNECTION: sqlite
       DB_DATABASE: /var/lib/creem-simulator/database.sqlite
     command: sh -lc "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
+    healthcheck:
+      test: ["CMD-SHELL", "tr '\\0' ' ' </proc/1/cmdline | grep -q 'schedule:run'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   ngrok:
     image: ngrok/ngrok:latest
