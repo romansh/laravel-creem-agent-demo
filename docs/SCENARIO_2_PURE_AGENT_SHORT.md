@@ -20,9 +20,19 @@ Important: the current compose file runs the dedicated host runtime from `app/`,
 
 ```bash
 cd /home/roman/php/run/laravel-creem-agent-demo
+	cp app/.env.example app/.env
+	bash scripts/install-app.sh
 	bash scripts/install-simulator.sh
  docker compose build app queue scheduler simulator
   # Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
+ docker compose run --rm app sh -lc '
+  git config --global --add safe.directory /app && composer install --no-interaction &&
+  test -f .env || cp .env.example .env &&
+  sqlite_db="${DB_DATABASE:-/var/lib/agent-app/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
+  php artisan key:generate &&
+  php artisan migrate --force &&
+  php artisan octane:install --server=frankenphp --no-interaction
+'
  docker compose run --rm simulator sh -lc '
   git config --global --add safe.directory /app && composer install --no-interaction &&
   test -f .env || cp .env.example .env &&
