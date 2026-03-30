@@ -161,20 +161,31 @@ Edit `~/.openclaw/openclaw.json`:
 
 ### 4c: Switch the app into OpenClaw mode
 
+All OpenClaw keys are already present in `app/.env` (copied from `app/.env.example`). You only need to flip the two flags and fill in your real values:
+
 ```bash
 exit  # back to normal user
 cd /home/www/laravel-creem-agent-demo
-cat >> app/.env <<'EOF'
+```
+
+Open `app/.env` and update these lines:
+
+```dotenv
 CREEM_AGENT_OPENCLAW=true
 CREEM_AGENT_TELEGRAM_MODE=openclaw
-OPENCLAW_TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
-OPENCLAW_ENDPOINT=http://127.0.0.1:4110
-OPENCLAW_WORKSPACE_PATH=/home/openclaw/.openclaw/workspace
-OPENCLAW_SHARED_SECRET=change-me
-EOF
 
-bash scripts/install-simulator.sh
-docker compose up -d app queue scheduler simulator
+# Set to your real Telegram bot token (same as CREEM_AGENT_TELEGRAM_TOKEN if you use one bot)
+OPENCLAW_TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
+# Secret must match the value in openclaw.json → gateway.sharedSecret
+OPENCLAW_SHARED_SECRET=change-me
+```
+
+`OPENCLAW_ENDPOINT` and `OPENCLAW_WORKSPACE_PATH` already point to the correct defaults and only need adjusting if you installed OpenClaw in a non-standard location.
+
+After editing `.env`, restart the agent services (no rebuild needed):
+
+```bash
+docker compose up -d app queue scheduler
 ```
 
 ### 4d: Start gateway and verify
