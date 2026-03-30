@@ -1,49 +1,71 @@
-# OpenClaw Laravel Creem Agent Skill
+# Laravel Creem Agent — OpenClaw Skill
 
-This folder now follows the real OpenClaw skill model: a skill is a directory with a `SKILL.md` file plus optional supporting scripts.
+A single-file OpenClaw skill that connects the OpenClaw assistant to a running Laravel Creem Agent endpoint. Only `SKILL.md` is needed — no shell scripts required.
 
-What changed
+## Install
 
-- Removed the custom `skill.yaml` manifest. OpenClaw does not use it.
-- The canonical entrypoint is now `SKILL.md`.
-- Installation target defaults to `~/.openclaw/workspace/skills/openclaw-laravel-creem-agent-skill`, matching current OpenClaw docs.
+Copy the `SKILL.md` file into your OpenClaw workspace skills directory:
 
-Install
-
-- Manual:
-  - Copy this folder to `~/.openclaw/workspace/skills/openclaw-laravel-creem-agent-skill`
-  - Make scripts executable if needed
-- Helper:
-  - Run `./install.sh`
-
-After install
-
-- Restart OpenClaw or refresh skills so it reindexes `SKILL.md`
-- Check visibility with `openclaw skills list` or `openclaw skills info openclaw-laravel-creem-agent-skill`
-
-Local script usage
-
-```sh
-echo "status" | ~/.openclaw/workspace/skills/openclaw-laravel-creem-agent-skill/run.sh
-~/.openclaw/workspace/skills/openclaw-laravel-creem-agent-skill/run.sh "what is the status?"
+```bash
+mkdir -p ~/.openclaw/workspace/skills/laravel-creem-agent
+cp SKILL.md ~/.openclaw/workspace/skills/laravel-creem-agent/SKILL.md
 ```
 
-Behavior notes
+Or use the OpenClaw CLI:
 
-- `run.sh` returns a non-zero exit code when the Laravel endpoint is down or responds with an HTTP error.
-- Multiline prompts and quoted text are JSON-escaped before sending.
-
-Configuration
-
-- `AGENT_URL` defaults to `http://127.0.0.1:8000/creem-agent/chat`
-
-Telegram options
-
-- OpenClaw mode: configure Telegram natively in OpenClaw gateway via `https://docs.openclaw.ai/channels/telegram`
-- Pure Laravel mode: use `/creem-agent/telegram/webhook`
-
-Render OpenClaw Telegram config from Laravel
-
-```sh
-php artisan creem-agent:openclaw-telegram-config
+```bash
+# If published to ClawHub:
+openclaw skills install laravel-creem-agent
 ```
+
+## Configure
+
+Set the `AGENT_URL` environment variable in `~/.openclaw/openclaw.json`:
+
+```json5
+{
+  skills: {
+    entries: {
+      "laravel-creem-agent": {
+        enabled: true,
+        env: {
+          AGENT_URL: "http://127.0.0.1:8000/creem-agent/chat"
+        }
+      }
+    }
+  }
+}
+```
+
+Or export it in your shell before starting the gateway:
+
+```bash
+export AGENT_URL="http://127.0.0.1:8000/creem-agent/chat"
+```
+
+## Telegram setup
+
+Configure Telegram natively in OpenClaw (`~/.openclaw/openclaw.json`):
+
+```json5
+{
+  channels: {
+    telegram: {
+      botToken: "YOUR_BOT_TOKEN",
+      allowFrom: ["YOUR_TELEGRAM_USER_ID"]
+    }
+  }
+}
+```
+
+See https://docs.openclaw.ai/channels/telegram for details.
+
+## Verify
+
+Send a test message via OpenClaw (Telegram, WebChat, or CLI):
+
+```
+what is the store status?
+```
+
+The skill teaches the OpenClaw agent to forward your message to the Laravel endpoint and relay the response back.
