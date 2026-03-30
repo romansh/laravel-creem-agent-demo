@@ -140,6 +140,9 @@ Edit `~/.openclaw/openclaw.json`:
 
 ```json5
 {
+  gateway: {
+    sharedSecret: "change-me"
+  },
   channels: {
     telegram: {
       botToken: "YOUR_BOT_TOKEN",
@@ -158,6 +161,8 @@ Edit `~/.openclaw/openclaw.json`:
   }
 }
 ```
+
+Set `gateway.sharedSecret` to the same value you use for `OPENCLAW_SHARED_SECRET` in `app/.env`.
 
 ### 4c: Switch the app into OpenClaw mode
 
