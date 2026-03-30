@@ -164,11 +164,11 @@ Edit `~/.openclaw/openclaw.json`:
 
 Set `gateway.sharedSecret` to the same value you use for `OPENCLAW_SHARED_SECRET` in `app/.env`.
 
-If the file already contains the placeholder values shown above, you can replace them automatically from `app/.env` with one command. `TELEGRAM_USER_ID` is separate because it is not stored in `app/.env`:
+If the file already contains the placeholder values shown above, you can replace them automatically from `app/.env` with one command:
 
 ```bash
 cd /home/www/laravel-creem-agent-demo
-TELEGRAM_USER_ID=YOUR_TELEGRAM_USER_ID && set -a && source app/.env && set +a && sudo su - openclaw -c 'OPENCLAW_TELEGRAM_BOT_TOKEN="$OPENCLAW_TELEGRAM_BOT_TOKEN" OPENCLAW_SHARED_SECRET="$OPENCLAW_SHARED_SECRET" TELEGRAM_USER_ID="$TELEGRAM_USER_ID" perl -0pi -e '\''s|botToken:\s*"YOUR_BOT_TOKEN"|qq{botToken: "$ENV{OPENCLAW_TELEGRAM_BOT_TOKEN}"}|ge; s|allowFrom:\s*\["YOUR_TELEGRAM_USER_ID"\]|qq{allowFrom: ["$ENV{TELEGRAM_USER_ID}"]}|ge; s|sharedSecret:\s*"change-me"|qq{sharedSecret: "$ENV{OPENCLAW_SHARED_SECRET}"}|ge'\'' ~/.openclaw/openclaw.json'
+set -a && source app/.env && set +a && sudo su - openclaw -c 'OPENCLAW_TELEGRAM_BOT_TOKEN="$OPENCLAW_TELEGRAM_BOT_TOKEN" OPENCLAW_SHARED_SECRET="$OPENCLAW_SHARED_SECRET" CREEM_AGENT_TELEGRAM_USER_ID="$CREEM_AGENT_TELEGRAM_USER_ID" perl -0pi -e '\''s|botToken:\s*"YOUR_BOT_TOKEN"|qq{botToken: "$ENV{OPENCLAW_TELEGRAM_BOT_TOKEN}"}|ge; s|allowFrom:\s*\["YOUR_TELEGRAM_USER_ID"\]|qq{allowFrom: ["$ENV{CREEM_AGENT_TELEGRAM_USER_ID}"]}|ge; s|sharedSecret:\s*"change-me"|qq{sharedSecret: "$ENV{OPENCLAW_SHARED_SECRET}"}|ge'\'' ~/.openclaw/openclaw.json'
 ```
 
 This only replaces the placeholder strings from the example block. If you already edited `~/.openclaw/openclaw.json` manually to other values, update it by hand instead.
@@ -187,6 +187,7 @@ Open `app/.env` and update these lines:
 ```dotenv
 CREEM_AGENT_OPENCLAW=true
 CREEM_AGENT_TELEGRAM_MODE=openclaw
+CREEM_AGENT_TELEGRAM_USER_ID=32323232
 
 # Set to your real Telegram bot token (same as CREEM_AGENT_TELEGRAM_TOKEN if you use one bot)
 OPENCLAW_TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
