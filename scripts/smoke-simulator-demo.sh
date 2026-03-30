@@ -50,8 +50,10 @@ ensure_simulator_installed
 
 "${COMPOSE[@]}" down --remove-orphans >/dev/null 2>&1 || true
 
+"${COMPOSE[@]}" up -d app simulator >/dev/null
+
 wait_for_simulator() {
-  "${COMPOSE[@]}" run --rm -T app php -r '
+  "${COMPOSE[@]}" exec -T app php -r '
     for ($i = 0; $i < 30; $i++) {
         $body = @file_get_contents("http://simulator/");
         if ($body !== false && str_contains($body, "Creem Simulator")) {
@@ -64,12 +66,12 @@ wait_for_simulator() {
   '
 }
 
-run_simulator() {
-  "${COMPOSE[@]}" run --rm simulator sh -lc "$1"
+exec_simulator() {
+  "${COMPOSE[@]}" exec -T simulator sh -lc "$1"
 }
 
-run_app() {
-  "${COMPOSE[@]}" run --rm app sh -lc "$1"
+exec_app() {
+  "${COMPOSE[@]}" exec -T app sh -lc "$1"
 }
 
 run_agent_package_tests() {
@@ -131,10 +133,12 @@ run_agent_telegram_runtime_smoke() {
 }
 
 echo "[1/7] Bootstrap agent app container"
-run_app '
-  git config --global --add safe.directory /app &&
-  composer install --no-interaction >/tmp/composer.log &&
-  test -f .env || cp .env.example .env &&
+exec_app '
+  if [ ! -f vendor/autoload.php ]; then
+    git config --global --add safe.directory /app &&
+    composer install --no-interaction >/tmp/composer.log
+  fi
+  test -f .env || cp .env.example .env
   sqlite_db="${DB_DATABASE:-/var/lib/agent-app/database.sqlite}" &&
   mkdir -p "$(dirname "$sqlite_db")" &&
   rm -f "$sqlite_db" &&
@@ -145,14 +149,16 @@ run_app '
 '
 
 echo "[2/7] Bootstrap simulator container"
-run_simulator '
-  CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET=test-secret \
-  CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET=secondary-secret \
-  CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=1 \
-  CREEM_SIMULATOR_RANDOM_SEED=2026 \
-  git config --global --add safe.directory /app &&
-  composer install --no-interaction >/tmp/composer.log &&
-  test -f .env || cp .env.example .env &&
+exec_simulator '
+  export CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET=test-secret
+  export CREEM_SIMULATOR_SECONDARY_WEBHOOK_SECRET=secondary-secret
+  export CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=1
+  export CREEM_SIMULATOR_RANDOM_SEED=2026
+  if [ ! -f vendor/autoload.php ]; then
+    git config --global --add safe.directory /app &&
+    composer install --no-interaction >/tmp/composer.log
+  fi
+  test -f .env || cp .env.example .env
   sqlite_db="${DB_DATABASE:-/var/lib/simulator/database.sqlite}" &&
   mkdir -p "$(dirname "$sqlite_db")" &&
   rm -f "$sqlite_db" &&
@@ -163,7 +169,7 @@ run_simulator '
 '
 
 echo "[3/7] Run simulator flow tests"
-run_simulator '
+exec_simulator '
   CREEM_SIMULATOR_AUTO_SEND_WEBHOOKS=1 \
   CREEM_SIMULATOR_RANDOM_SEED=2026 \
   CREEM_SIMULATOR_DEFAULT_WEBHOOK_SECRET=test-secret \
@@ -171,16 +177,15 @@ run_simulator '
   php artisan test tests/Feature/SimulatorFlowTest.php tests/Feature/SimulatorMultiStoreFlowTest.php
 '
 
-run_simulator '
+exec_simulator '
   CREEM_SIMULATOR_RANDOM_SEED=2026 \
   php artisan simulator:seed-demo --store=default --reset &&
   CREEM_SIMULATOR_RANDOM_SEED=2026 php artisan simulator:seed-demo --store=secondary --reset
 '
 
 echo "[4/7] Run user heartbeat command"
-"${COMPOSE[@]}" up -d simulator >/dev/null
 wait_for_simulator
-"${COMPOSE[@]}" run --rm -T \
+"${COMPOSE[@]}" exec -T \
   -e CREEM_TEST_MODE=true \
   -e CREEM_API_URL=http://simulator/api/v1 \
   -e CREEM_TEST_API_URL=http://simulator/api/v1 \
@@ -215,7 +220,7 @@ if [ -n "$NETWORK_NAME" ]; then
   done
 
   echo "[7/7] Run simulator smoke commands"
-  run_simulator '
+  exec_simulator '
     CREEM_SIMULATOR_RANDOM_SEED=2026 \
     php artisan simulator:seed-demo --store=default --reset &&
     CREEM_SIMULATOR_RANDOM_SEED=2026 php artisan simulator:seed-demo --store=secondary --reset &&
@@ -232,7 +237,7 @@ if [ -n "$NETWORK_NAME" ]; then
 
   for i in $(seq 1 "$WEBHOOK_COUNT"); do
     echo "Sending webhook #$i"
-    out=$(run_simulator '
+    out=$(exec_simulator '
       CREEM_SIMULATOR_AGENT_WEBHOOK_URL="http://webhook-receiver/post" CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET="test-secret" php artisan simulator:send-webhook payment.failed --store=default
     ')
     echo "$out" > "$results_dir/response-$i.json"
@@ -263,7 +268,7 @@ if [ -n "$NETWORK_NAME" ]; then
 
 else
   echo "Could not determine compose network; running webhook step with no URL (expected to skip)."
-  run_simulator '
+  exec_simulator '
     # Webhook may fail if no URL is configured — this is expected in CI, so we handle it explicitly
     CREEM_SIMULATOR_AGENT_WEBHOOK_URL= CREEM_SIMULATOR_AGENT_WEBHOOK_SECRET= php artisan simulator:send-webhook payment.failed --store=default \
       && echo "webhook sent (ok, no url configured)" \

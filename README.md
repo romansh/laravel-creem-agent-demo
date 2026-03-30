@@ -54,6 +54,7 @@ cd $HOME/php/run/laravel-creem-agent-demo
 cp app/.env.example app/.env
 bash scripts/install-app.sh
 docker compose build app queue scheduler
+docker compose run --rm app php artisan migrate --force
 docker compose up -d app queue scheduler
 ```
 
@@ -67,8 +68,26 @@ cp app/.env.example app/.env
 bash scripts/install-app.sh
 bash scripts/install-simulator.sh
 docker compose build app queue scheduler simulator
+docker compose run --rm app php artisan migrate --force
 docker compose up -d app queue scheduler simulator
 bash scripts/smoke-simulator-demo.sh
+```
+
+### Fresh folder from scratch
+
+Use this when you need the shortest clean setup on a new machine or inside a VM:
+
+```bash
+mkdir -p $HOME/php/run
+cd $HOME/php/run
+git clone https://github.com/romansh/laravel-creem-agent-demo.git
+cd laravel-creem-agent-demo
+cp app/.env.example app/.env
+bash scripts/install-app.sh
+bash scripts/install-simulator.sh
+docker compose build app queue scheduler simulator
+docker compose run --rm app php artisan migrate --force
+docker compose up -d app queue scheduler simulator
 ```
 
 Run heartbeat directly in the host app:
@@ -101,6 +120,7 @@ Use the resulting public base URL for:
 ## Useful commands
 
 - Build services: `docker compose build app queue scheduler simulator`
+- Run app migrations: `docker compose run --rm app php artisan migrate --force`
 - Start app only: `docker compose up -d app queue scheduler`
 - Start full stack: `docker compose up -d app queue scheduler simulator`
 - Follow logs: `docker compose logs -f app`

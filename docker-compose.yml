@@ -104,9 +104,6 @@ services:
       - app
     env_file:
       - ./app/.env
-    environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
-      NGROK_URL: ${NGROK_URL:-}
     entrypoint: sh -c 'if [ -n "$$NGROK_URL" ]; then exec ngrok http app:80 --log=stdout --url "$$NGROK_URL"; else exec ngrok http app:80 --log=stdout; fi'
 
   simulator:

@@ -6,6 +6,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE=(docker compose --project-directory "${ROOT_DIR}")
 APP_ENV_FILE="${ROOT_DIR}/app/.env"
 
+app_ready() {
+  [ -f "${ROOT_DIR}/app/artisan" ] && [ -f "${ROOT_DIR}/app/vendor/autoload.php" ]
+}
+
+simulator_ready() {
+  [ -f "${ROOT_DIR}/simulator/artisan" ] && [ -f "${ROOT_DIR}/simulator/vendor/autoload.php" ]
+}
+
 service_container_id() {
   "${COMPOSE[@]}" ps -q "$1" 2>/dev/null | head -n1
 }
@@ -79,10 +87,18 @@ wait_for_simulator() {
   '
 }
 
-"${ROOT_DIR}/scripts/install-app.sh"
+if ! app_ready; then
+  echo "App runtime is not prepared yet." >&2
+  echo "Run 'bash scripts/install-app.sh' first, then retry heartbeat." >&2
+  exit 1
+fi
 
 if needs_simulator; then
-  "${ROOT_DIR}/scripts/install-simulator.sh"
+  if ! simulator_ready; then
+    echo "Simulator runtime is required by the current app/.env but is not prepared yet." >&2
+    echo "Run 'bash scripts/install-simulator.sh' first, then retry heartbeat." >&2
+    exit 1
+  fi
   ensure_service_running app
   ensure_service_running simulator
   wait_for_simulator

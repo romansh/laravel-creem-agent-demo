@@ -121,24 +121,26 @@ cd $HOME/php/run/laravel-creem-agent-demo
 bash scripts/install-app.sh
 bash scripts/install-simulator.sh
 docker compose build app queue scheduler simulator
-# Note: added `git config` command to avoid Git `safe.directory` errors when running Composer inside the container
-docker compose run --rm app sh -lc '
-    git config --global --add safe.directory /app && composer install --no-interaction &&
-    test -f .env || cp .env.example .env &&
-    sqlite_db="${DB_DATABASE:-/var/lib/agent-app/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
-    php artisan key:generate &&
-    php artisan migrate --force
-'
-docker compose run --rm simulator sh -lc '
-    git config --global --add safe.directory /app && composer install --no-interaction &&
-    test -f .env || cp .env.example .env &&
-    sqlite_db="${DB_DATABASE:-/var/lib/simulator/database.sqlite}" && mkdir -p "$(dirname "$sqlite_db")" && touch "$sqlite_db" &&
-    php artisan key:generate &&
-    php artisan migrate --seed &&
-    php artisan octane:install --server=frankenphp --no-interaction
-'
+docker compose run --rm app php artisan migrate --force
 docker compose up -d app queue scheduler simulator
 ```
+
+For a brand-new folder on a clean VM or host, the short flow is:
+
+```bash
+mkdir -p $HOME/php/run
+cd $HOME/php/run
+git clone https://github.com/romansh/laravel-creem-agent-demo.git
+cd laravel-creem-agent-demo
+cp app/.env.example app/.env
+bash scripts/install-app.sh
+bash scripts/install-simulator.sh
+docker compose build app queue scheduler simulator
+docker compose run --rm app php artisan migrate --force
+docker compose up -d app queue scheduler simulator
+```
+
+The migration step is intentional. Do not hide it inside container startup. Run it explicitly before `docker compose up -d ...` so the web app, queue, and scheduler can start as normal services without mixing healthchecks with schema changes.
 -
 Start services and run the supported verification flow:
 
