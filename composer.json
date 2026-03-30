@@ -6,7 +6,7 @@
     "php": "^8.2",
     "romansh/laravel-creem": "^1.2",
     "romansh/laravel-creem-cli": "^1.2",
-    "romansh/laravel-creem-agent": "^1.2"
+    "romansh/laravel-creem-agent": "^1.2.13"
   },
   "repositories": [],
   "autoload": {

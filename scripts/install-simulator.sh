@@ -10,7 +10,7 @@ SIMULATOR_PACKAGE="${CREEM_SIMULATOR_PACKAGE:-romansh/laravel-creem-store-simula
 SIMULATOR_VERSION="${CREEM_SIMULATOR_VERSION:-^1.0}"
 CREEM_PACKAGE_VERSION="${CREEM_PACKAGE_VERSION:-^1.2}"
 CREEM_CLI_PACKAGE_VERSION="${CREEM_CLI_PACKAGE_VERSION:-^1.2}"
-CREEM_AGENT_PACKAGE_VERSION="${CREEM_AGENT_PACKAGE_VERSION:-^1.2}"
+CREEM_AGENT_PACKAGE_VERSION="${CREEM_AGENT_PACKAGE_VERSION:-^1.2.13}"
 AGENT_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/creem-agent.php"
 BOOTSTRAP_APP_TEMPLATE="${ROOT_DIR}/stubs/bootstrap-app.php"
 VIEW_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/view.php"
@@ -150,12 +150,17 @@ sync_demo_runtime_files() {
 
   if [ -d "${LOCAL_AGENT_REPO}/src" ] && [ -d "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src" ]; then
     mkdir -p \
+      "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Agent" \
       "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Heartbeat" \
       "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Listeners" \
       "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Notifications" \
       "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Support"
 
     cp "${LOCAL_AGENT_REPO}/src/CreemAgentServiceProvider.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/CreemAgentServiceProvider.php"
+    cp "${LOCAL_AGENT_REPO}/src/Agent/AgentManager.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Agent/AgentManager.php"
+    cp "${LOCAL_AGENT_REPO}/src/Agent/CommandParser.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Agent/CommandParser.php"
+    cp "${LOCAL_AGENT_REPO}/src/Agent/IntentClassifierAgent.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Agent/IntentClassifierAgent.php"
+    cp "${LOCAL_AGENT_REPO}/src/Heartbeat/ChangeDetector.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Heartbeat/ChangeDetector.php"
     cp "${LOCAL_AGENT_REPO}/src/Heartbeat/Reporter.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Heartbeat/Reporter.php"
     cp "${LOCAL_AGENT_REPO}/src/Listeners/CreemWebhookTelegramNotifier.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Listeners/CreemWebhookTelegramNotifier.php"
     cp "${LOCAL_AGENT_REPO}/src/Notifications/FirstHeartbeat.php" "${SIMULATOR_DIR}/vendor/romansh/laravel-creem-agent/src/Notifications/FirstHeartbeat.php"

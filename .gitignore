@@ -1,5 +1,7 @@
 # Demo-specific ignored resources (internal)
 .resources/
+!.resources/
+!.resources/SETUP_SHORT.md
 vendor/
 simulator/
 app/*

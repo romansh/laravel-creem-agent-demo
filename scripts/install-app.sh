@@ -8,7 +8,7 @@ APP_PACKAGE="${CREEM_DEMO_APP_PACKAGE:-laravel/laravel}"
 APP_VERSION="${CREEM_DEMO_APP_VERSION:-^12.0}"
 CREEM_PACKAGE_VERSION="${CREEM_PACKAGE_VERSION:-^1.2}"
 CREEM_CLI_PACKAGE_VERSION="${CREEM_CLI_PACKAGE_VERSION:-^1.2}"
-CREEM_AGENT_PACKAGE_VERSION="${CREEM_AGENT_PACKAGE_VERSION:-^1.2}"
+CREEM_AGENT_PACKAGE_VERSION="${CREEM_AGENT_PACKAGE_VERSION:-^1.2.13}"
 OCTANE_PACKAGE_VERSION="${OCTANE_PACKAGE_VERSION:-^2.5}"
 ENV_TEMPLATE="${ROOT_DIR}/stubs/app.env.example"
 AGENT_CONFIG_TEMPLATE="${ROOT_DIR}/stubs/creem-agent.php"
@@ -56,12 +56,17 @@ ensure_app_dependencies() {
 sync_local_agent_override() {
   if [ -d "${LOCAL_AGENT_REPO}/src" ] && [ -d "${APP_DIR}/vendor/romansh/laravel-creem-agent/src" ]; then
     mkdir -p \
+      "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Agent" \
       "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Heartbeat" \
       "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Listeners" \
       "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Notifications" \
       "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Support"
 
     cp "${LOCAL_AGENT_REPO}/src/CreemAgentServiceProvider.php" "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/CreemAgentServiceProvider.php"
+    cp "${LOCAL_AGENT_REPO}/src/Agent/AgentManager.php" "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Agent/AgentManager.php"
+    cp "${LOCAL_AGENT_REPO}/src/Agent/CommandParser.php" "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Agent/CommandParser.php"
+    cp "${LOCAL_AGENT_REPO}/src/Agent/IntentClassifierAgent.php" "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Agent/IntentClassifierAgent.php"
+    cp "${LOCAL_AGENT_REPO}/src/Heartbeat/ChangeDetector.php" "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Heartbeat/ChangeDetector.php"
     cp "${LOCAL_AGENT_REPO}/src/Heartbeat/Reporter.php" "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Heartbeat/Reporter.php"
     cp "${LOCAL_AGENT_REPO}/src/Listeners/CreemWebhookTelegramNotifier.php" "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Listeners/CreemWebhookTelegramNotifier.php"
     cp "${LOCAL_AGENT_REPO}/src/Notifications/FirstHeartbeat.php" "${APP_DIR}/vendor/romansh/laravel-creem-agent/src/Notifications/FirstHeartbeat.php"
