@@ -52,11 +52,13 @@ Configure Telegram natively in OpenClaw (`~/.openclaw/openclaw.json`):
   channels: {
     telegram: {
       botToken: "YOUR_BOT_TOKEN",
-      allowFrom: ["YOUR_TELEGRAM_USER_ID"]
+      allowFrom: ["YOUR_TELEGRAM_CHAT_ID"]
     }
   }
 }
 ```
+
+For a direct private chat with the bot, `allowFrom` can reuse the same numeric value as `message.chat.id`.
 
 See https://docs.openclaw.ai/channels/telegram for details.
 

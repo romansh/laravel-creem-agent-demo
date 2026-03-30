@@ -9,10 +9,11 @@ Collect before starting:
 | Creem API key `creem_test_...` | Creem Dashboard → API Keys |
 | Creem webhook secret `whsec_...` | Creem Dashboard → Webhooks |
 | Telegram bot token | @BotFather → /newbot |
-| Telegram chat ID | `curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" \| jq '.result[0].message.chat.id'` |
-| Telegram user ID (for OpenClaw allowFrom) | Send any message to your bot, then: `curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" \| jq '.result[0].message.from.id'` |
+| Telegram private chat ID | `curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" \| jq '.result[0].message.chat.id'` |
 | ngrok authtoken | ngrok.com → Dashboard → Auth |
 | OpenAI API key (optional, for LLM) | platform.openai.com → API keys |
+
+In a direct private chat with the bot, Telegram returns the same numeric ID in both `message.chat.id` and `message.from.id`, so OpenClaw `allowFrom` can reuse `CREEM_AGENT_TELEGRAM_CHAT_ID`. Do not assume that for groups or channels.
 
 For the simulator-only phases, no real Creem keys needed — defaults (`creem_test_demo_default` / `whsec_demo_default`) work out of the box.
 
@@ -146,7 +147,7 @@ Edit `~/.openclaw/openclaw.json`:
   channels: {
     telegram: {
       botToken: "YOUR_BOT_TOKEN",
-      allowFrom: ["YOUR_TELEGRAM_USER_ID"]
+      allowFrom: ["YOUR_TELEGRAM_CHAT_ID"]
     }
   },
   skills: {
@@ -168,7 +169,7 @@ If the file already contains the placeholder values shown above, you can replace
 
 ```bash
 cd /home/www/laravel-creem-agent-demo
-set -a && source app/.env && set +a && sudo su - openclaw -c 'OPENCLAW_TELEGRAM_BOT_TOKEN="$OPENCLAW_TELEGRAM_BOT_TOKEN" OPENCLAW_SHARED_SECRET="$OPENCLAW_SHARED_SECRET" CREEM_AGENT_TELEGRAM_USER_ID="$CREEM_AGENT_TELEGRAM_USER_ID" perl -0pi -e '\''s|botToken:\s*"YOUR_BOT_TOKEN"|qq{botToken: "$ENV{OPENCLAW_TELEGRAM_BOT_TOKEN}"}|ge; s|allowFrom:\s*\["YOUR_TELEGRAM_USER_ID"\]|qq{allowFrom: ["$ENV{CREEM_AGENT_TELEGRAM_USER_ID}"]}|ge; s|sharedSecret:\s*"change-me"|qq{sharedSecret: "$ENV{OPENCLAW_SHARED_SECRET}"}|ge'\'' ~/.openclaw/openclaw.json'
+set -a && source app/.env && set +a && sudo su - openclaw -c 'OPENCLAW_TELEGRAM_BOT_TOKEN="$OPENCLAW_TELEGRAM_BOT_TOKEN" OPENCLAW_SHARED_SECRET="$OPENCLAW_SHARED_SECRET" CREEM_AGENT_TELEGRAM_CHAT_ID="$CREEM_AGENT_TELEGRAM_CHAT_ID" perl -0pi -e '\''s|botToken:\s*"YOUR_BOT_TOKEN"|qq{botToken: "$ENV{OPENCLAW_TELEGRAM_BOT_TOKEN}"}|ge; s|allowFrom:\s*\["YOUR_TELEGRAM_CHAT_ID"\]|qq{allowFrom: ["$ENV{CREEM_AGENT_TELEGRAM_CHAT_ID}"]}|ge; s|sharedSecret:\s*"change-me"|qq{sharedSecret: "$ENV{OPENCLAW_SHARED_SECRET}"}|ge'\'' ~/.openclaw/openclaw.json'
 ```
 
 This only replaces the placeholder strings from the example block. If you already edited `~/.openclaw/openclaw.json` manually to other values, update it by hand instead.
@@ -187,13 +188,14 @@ Open `app/.env` and update these lines:
 ```dotenv
 CREEM_AGENT_OPENCLAW=true
 CREEM_AGENT_TELEGRAM_MODE=openclaw
-CREEM_AGENT_TELEGRAM_USER_ID=32323232
 
 # Set to your real Telegram bot token (same as CREEM_AGENT_TELEGRAM_TOKEN if you use one bot)
 OPENCLAW_TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
 # Secret must match the value in openclaw.json → gateway.sharedSecret
 OPENCLAW_SHARED_SECRET=change-me
 ```
+
+OpenClaw `allowFrom` should use the same private-chat value as `CREEM_AGENT_TELEGRAM_CHAT_ID`.
 
 `OPENCLAW_ENDPOINT` and `OPENCLAW_WORKSPACE_PATH` already point to the correct defaults and only need adjusting if you installed OpenClaw in a non-standard location.
 
