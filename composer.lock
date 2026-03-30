@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "770cf8109c1d24a4bedbf86153f67e5c",
+    "content-hash": "5ac6b93a524b55826cec7937b768227d",
     "packages": [
         {
             "name": "brick/math",
@@ -3280,16 +3280,16 @@
         },
         {
             "name": "romansh/laravel-creem",
-            "version": "1.2.9",
+            "version": "v1.2.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/romansh/laravel-creem.git",
-                "reference": "9dfcee22a86907a718195c7d1d9d873235ea6a4f"
+                "reference": "3b2d25a6730a02bfae2551e0edda9a927f1248f0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/romansh/laravel-creem/zipball/9dfcee22a86907a718195c7d1d9d873235ea6a4f",
-                "reference": "9dfcee22a86907a718195c7d1d9d873235ea6a4f",
+                "url": "https://api.github.com/repos/romansh/laravel-creem/zipball/3b2d25a6730a02bfae2551e0edda9a927f1248f0",
+                "reference": "3b2d25a6730a02bfae2551e0edda9a927f1248f0",
                 "shasum": ""
             },
             "require": {
@@ -3346,22 +3346,22 @@
             ],
             "support": {
                 "issues": "https://github.com/romansh/laravel-creem/issues",
-                "source": "https://github.com/romansh/laravel-creem/tree/v1.2.9"
+                "source": "https://github.com/romansh/laravel-creem/tree/v1.2.10"
             },
-            "time": "2026-03-20T20:07:54+00:00"
+            "time": "2026-03-29T19:23:17+00:00"
         },
         {
             "name": "romansh/laravel-creem-agent",
-            "version": "1.2.8",
+            "version": "v1.2.13",
             "source": {
                 "type": "git",
                 "url": "https://github.com/romansh/laravel-creem-agent.git",
-                "reference": "0de336b4233e0eca99ba9709f2e83dd3eb94176e"
+                "reference": "8bc284ef128e469a1e595ac216f1b89759c02393"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/romansh/laravel-creem-agent/zipball/0de336b4233e0eca99ba9709f2e83dd3eb94176e",
-                "reference": "0de336b4233e0eca99ba9709f2e83dd3eb94176e",
+                "url": "https://api.github.com/repos/romansh/laravel-creem-agent/zipball/8bc284ef128e469a1e595ac216f1b89759c02393",
+                "reference": "8bc284ef128e469a1e595ac216f1b89759c02393",
                 "shasum": ""
             },
             "require": {
@@ -3372,8 +3372,8 @@
                 "illuminate/support": "^11.0|^12.0",
                 "laravel/ai": "^0.4",
                 "php": "^8.2",
-                "romansh/laravel-creem": "^1.0",
-                "romansh/laravel-creem-cli": "^1.0 || dev-main"
+                "romansh/laravel-creem": "^1.2",
+                "romansh/laravel-creem-cli": "^1.2"
             },
             "require-dev": {
                 "orchestra/testbench": "^9.0|^10.0",
@@ -3411,22 +3411,22 @@
             ],
             "support": {
                 "issues": "https://github.com/romansh/laravel-creem-agent/issues",
-                "source": "https://github.com/romansh/laravel-creem-agent/tree/v1.2.8"
+                "source": "https://github.com/romansh/laravel-creem-agent/tree/v1.2.13"
             },
-            "time": "2026-03-28T11:17:58+00:00"
+            "time": "2026-03-30T09:08:21+00:00"
         },
         {
             "name": "romansh/laravel-creem-cli",
-            "version": "1.2.8",
+            "version": "v1.2.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/romansh/laravel-creem-cli.git",
-                "reference": "51e808aaf01287688d8193f63e239c711d3c98ec"
+                "reference": "d64456aec4ba53b3e03ee2f18ef3d5b3100bb68f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/romansh/laravel-creem-cli/zipball/51e808aaf01287688d8193f63e239c711d3c98ec",
-                "reference": "51e808aaf01287688d8193f63e239c711d3c98ec",
+                "url": "https://api.github.com/repos/romansh/laravel-creem-cli/zipball/d64456aec4ba53b3e03ee2f18ef3d5b3100bb68f",
+                "reference": "d64456aec4ba53b3e03ee2f18ef3d5b3100bb68f",
                 "shasum": ""
             },
             "require": {
@@ -3466,9 +3466,9 @@
             ],
             "support": {
                 "issues": "https://github.com/romansh/laravel-creem-cli/issues",
-                "source": "https://github.com/romansh/laravel-creem-cli/tree/v1.2.8"
+                "source": "https://github.com/romansh/laravel-creem-cli/tree/v1.2.10"
             },
-            "time": "2026-03-21T17:33:33+00:00"
+            "time": "2026-03-29T19:23:22+00:00"
         },
         {
             "name": "symfony/clock",
