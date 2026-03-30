@@ -52,7 +52,7 @@ sudo sh /mnt/cdrom/VBoxLinuxAdditions.run || true
 3. Create the mount point and add your user to the `vboxsf` group:
 
 ```bash
-sudo mkdir -p /home/www/laravel-creem-agent-demo
+sudo mkdir -p /home/www
 sudo usermod -aG vboxsf $USER
 # Log out and back in (or reboot) to apply group membership
 ```
@@ -60,7 +60,7 @@ sudo usermod -aG vboxsf $USER
 4. Mount the shared folder manually (replace UID/GID if needed):
 
 ```bash
-sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www/laravel-creem-agent-demo
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www
 ```
 
 ### Install Docker inside the guest (Ubuntu)
@@ -221,7 +221,7 @@ The machine or container user running Composer must have read access to these re
 
 In the VM the timing is the same as on the host: copy `app/.env.example` to `app/.env`, fill it once with the values you need, then run initialization. The `ngrok` service can start later when you need a public HTTPS callback URL, but its token should already be present in the same file.
 
-Summary: provision a VM, mount or clone this demo repository into the guest (for example at `/home/www/laravel-creem-agent-demo`), then run the Docker-based setup inside the VM. This keeps the host clean and simulates a small VPS.
+Summary: provision a VM, mount or clone this demo repository into the guest (for example at `/home/www`), then run the Docker-based setup inside the VM. This keeps the host clean and simulates a small VPS.
 
 Common VM bootstrap (guest):
 
@@ -235,7 +235,7 @@ sudo usermod -aG docker $USER
 Mount or clone this demo repository into the VM (see Appendix), then inside the guest:
 
 ```bash
-cd /home/www/laravel-creem-agent-demo
+cd /home/www
 bash scripts/install-simulator.sh
 docker compose build app queue scheduler simulator
 docker compose run --rm simulator sh -lc '
@@ -290,7 +290,7 @@ If you prefer an isolated VM, use VirtualBox. Recommended: mount or clone only t
 
 Short steps (details in the Appendix below):
 
-- Preferred: mount or clone this repository into the guest (for example at `/home/www/laravel-creem-agent-demo`) and operate from there.
+- Preferred: mount or clone this repository into the guest (for example at `/home/www`) and operate from there.
 
 Example (host):
 
@@ -301,8 +301,8 @@ VBoxManage sharedfolder add "VM-name" --name demo_repo --hostpath /path/to/larav
 Example (guest):
 
 ```bash
-sudo mkdir -p /home/www/laravel-creem-agent-demo
-sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www/laravel-creem-agent-demo
+sudo mkdir -p /home/www
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www
 ```
 
 - Optional (maintainer-only): if you need multiple sibling package checkouts for package-level tests, clone those repositories inside the guest (for example under `/home/www`) and point `CREEM_AGENT_PACKAGE_REPO` at the local path when running the smoke scripts. This is purely optional and intended for maintainers.
@@ -316,7 +316,7 @@ sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www/laravel-cr
 
 ## Appendix: VirtualBox Guest Additions & Shared Folder (detailed)
 
-If you use VirtualBox, prefer mounting or cloning only this demo repository into the guest rather than exposing the host's entire parent folder. The examples below assume you will share the demo repo into the guest at `/home/www/laravel-creem-agent-demo`.
+If you use VirtualBox, prefer mounting or cloning only this demo repository into the guest rather than exposing the host's entire parent folder. The examples below assume you will share the demo repo into the guest at `/home/www`.
 
 Host (VirtualBox Manager):
 
@@ -424,7 +424,7 @@ systemctl status vboxservice || true
 ```
 
 - Notes:
-- If you mounted the demo repo, it will be available inside the guest at the mount point you chose (for example `/home/www/laravel-creem-agent-demo`).
+- If you mounted the demo repo, it will be available inside the guest at the mount point you chose (for example `/home/www`).
 - If you need multiple package checkouts for maintainer tests, clone those repositories inside the guest and point `CREEM_AGENT_PACKAGE_REPO` at the local path when running smoke scripts.
 - If you used the Guest Additions ISO, a reboot may be required.
 - If permissions look incorrect, verify `uid`/`gid` options in the mount command or `/etc/fstab`.

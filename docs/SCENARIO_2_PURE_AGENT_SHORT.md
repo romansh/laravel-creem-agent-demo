@@ -188,7 +188,7 @@ bash scripts/smoke-simulator-demo.sh
 
 ## Guest Additions & Shared Folder (optional)
 
-If you need a VM, prefer mounting or cloning only this demo repository into the guest (for example at `/home/www/laravel-creem-agent-demo`). Mounting the entire host parent folder is not required and is discouraged.
+If you need a VM, prefer mounting or cloning only this demo repository into the guest (for example at `/home/www`). Mounting the entire host parent folder is not required and is discouraged.
 
 Example (host):
 
@@ -199,8 +199,8 @@ VBoxManage sharedfolder add "VM-name" --name demo_repo --hostpath /path/to/larav
 Example (guest):
 
 ```bash
-sudo mkdir -p /home/www/laravel-creem-agent-demo
-sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www/laravel-creem-agent-demo
+sudo mkdir -p /home/www
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www
 ```
 
 If you are a maintainer and need multiple sibling package checkouts for tests, clone those repositories inside the guest (for example under `/home/www`) and point `CREEM_AGENT_PACKAGE_REPO` at the local path when running smoke scripts.

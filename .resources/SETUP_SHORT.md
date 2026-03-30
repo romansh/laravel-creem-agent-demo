@@ -56,10 +56,10 @@ Log out and back in after adding the user to the `docker` and `vboxsf` groups.
 
 ## Part 1: Bootstrap from the shared checkout
 
-Everything below runs inside the guest from `/home/www/laravel-creem-agent-demo`.
+Everything below runs inside the guest from `/home/www`.
 
 ```bash
-cd /home/www/laravel-creem-agent-demo
+cd /home/www
 cp app/.env.example app/.env
 bash scripts/install-app.sh
 bash scripts/install-simulator.sh
@@ -78,7 +78,7 @@ Rules for this flow:
 ## Part 2: Simulator-first verification
 
 ```bash
-cd /home/www/laravel-creem-agent-demo
+cd /home/www
 bash scripts/smoke-simulator-demo.sh
 docker compose exec simulator php artisan simulator:seed-demo --reset
 bash scripts/run-heartbeat.sh --all-stores
@@ -91,7 +91,7 @@ This proves the checked-in stack works before public Telegram or OpenClaw wiring
 ## Part 3: Laravel Telegram + ngrok path
 
 ```bash
-cd /home/www/laravel-creem-agent-demo
+cd /home/www
 docker compose up -d app queue scheduler simulator ngrok
 
 set -o allexport
@@ -131,7 +131,7 @@ exit
 ```bash
 sudo su - openclaw
 mkdir -p ~/.openclaw/workspace/skills/laravel-creem-agent
-cp /home/www/laravel-creem-agent-demo/openclaw-laravel-creem-agent-skill/SKILL.md \
+cp /home/www/openclaw-laravel-creem-agent-skill/SKILL.md \
    ~/.openclaw/workspace/skills/laravel-creem-agent/SKILL.md
 ```
 
@@ -168,7 +168,7 @@ Set `gateway.sharedSecret` to the same value you use for `OPENCLAW_SHARED_SECRET
 If the file already contains the placeholder values shown above, you can replace them automatically from `app/.env` with one command:
 
 ```bash
-cd /home/www/laravel-creem-agent-demo
+cd /home/www
 set -a && source app/.env && set +a && sudo su - openclaw -c 'OPENCLAW_TELEGRAM_BOT_TOKEN="$OPENCLAW_TELEGRAM_BOT_TOKEN" OPENCLAW_SHARED_SECRET="$OPENCLAW_SHARED_SECRET" CREEM_AGENT_TELEGRAM_CHAT_ID="$CREEM_AGENT_TELEGRAM_CHAT_ID" perl -0pi -e '\''s|botToken:\s*"YOUR_BOT_TOKEN"|qq{botToken: "$ENV{OPENCLAW_TELEGRAM_BOT_TOKEN}"}|ge; s|allowFrom:\s*\["YOUR_TELEGRAM_CHAT_ID"\]|qq{allowFrom: ["$ENV{CREEM_AGENT_TELEGRAM_CHAT_ID}"]}|ge; s|sharedSecret:\s*"change-me"|qq{sharedSecret: "$ENV{OPENCLAW_SHARED_SECRET}"}|ge'\'' ~/.openclaw/openclaw.json'
 ```
 
@@ -180,7 +180,7 @@ All OpenClaw keys are already present in `app/.env` (copied from `app/.env.examp
 
 ```bash
 exit  # back to normal user
-cd /home/www/laravel-creem-agent-demo
+cd /home/www
 ```
 
 Open `app/.env` and update these lines:
@@ -225,7 +225,7 @@ Test from Telegram:
 Then run the deeper scenario:
 
 ```bash
-cd /home/www/laravel-creem-agent-demo
+cd /home/www
 docker compose exec simulator php artisan simulator:advance --sales=3 --new-customers=2 --past-due=2 --cancellations=1 --send-webhooks
 bash scripts/run-heartbeat.sh --force --all-stores
 ```
@@ -235,7 +235,7 @@ bash scripts/run-heartbeat.sh --force --all-stores
 After simulator-first and Telegram/OpenClaw checks are green:
 
 ```bash
-cd /home/www/laravel-creem-agent-demo
+cd /home/www
 docker compose exec simulator php artisan simulator:send-webhook payment.failed
 docker compose exec simulator php artisan simulator:send-webhook subscription.canceled
 
@@ -248,7 +248,7 @@ Then replace simulator values in `app/.env` with real Creem keys and the real we
 ## Part 6: LLM check
 
 ```bash
-cd /home/www/laravel-creem-agent-demo
+cd /home/www
 docker compose exec app php artisan tinker --execute="dump(filled(config('ai.providers.openai.key')));"
 docker compose exec app php artisan creem-agent:chat "status"
 docker compose exec app tail -n 50 storage/logs/laravel.log

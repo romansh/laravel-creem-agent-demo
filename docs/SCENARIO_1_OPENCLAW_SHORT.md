@@ -189,7 +189,7 @@ After the commands above are green, continue with the real-Creem sections in `FL
 
 ## Guest Additions & Shared Folder (optional)
 
-If you prefer a VM, mount or clone only this demo repository into the guest (for example at `/home/www/laravel-creem-agent-demo`). Mounting the host's entire parent folder is unnecessary and discouraged.
+If you prefer a VM, mount or clone only this demo repository into the guest (for example at `/home/www`). Mounting the host's entire parent folder is unnecessary and discouraged.
 
 Example (host):
 
@@ -200,8 +200,8 @@ VBoxManage sharedfolder add "VM-name" --name demo_repo --hostpath /path/to/larav
 Example (guest):
 
 ```bash
-sudo mkdir -p /home/www/laravel-creem-agent-demo
-sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www/laravel-creem-agent-demo
+sudo mkdir -p /home/www
+sudo mount -t vboxsf -o uid=$(id -u),gid=$(id -g) demo_repo /home/www
 ```
 
 If you are a maintainer and need multiple sibling checkouts for package tests, clone those repositories inside the guest under `/home/www` and point `CREEM_AGENT_PACKAGE_REPO` at the local path when running smoke scripts. For private repositories, SSH agent forwarding (`ssh -A`) from host to VM is supported when you SSH into the VM.

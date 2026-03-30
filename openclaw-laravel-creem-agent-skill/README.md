@@ -11,6 +11,14 @@ mkdir -p ~/.openclaw/workspace/skills/laravel-creem-agent
 cp SKILL.md ~/.openclaw/workspace/skills/laravel-creem-agent/SKILL.md
 ```
 
+If you are following the demo VM layout from this repository, the checked-out bundle lives at `/home/www`, so copy it from there:
+
+```bash
+mkdir -p ~/.openclaw/workspace/skills/laravel-creem-agent
+cp /home/www/openclaw-laravel-creem-agent-skill/SKILL.md \
+  ~/.openclaw/workspace/skills/laravel-creem-agent/SKILL.md
+```
+
 Or use the OpenClaw CLI:
 
 ```bash
