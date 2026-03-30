@@ -126,16 +126,16 @@ openclaw status
 exit
 ```
 
-### 4a: Install the skill (single-file, no shell scripts)
+### Install the skill
 
 ```bash
 sudo su - openclaw
-mkdir -p ~/.openclaw/workspace/skills/laravel-creem-agent
-cp /home/www/openclaw-laravel-creem-agent-skill/SKILL.md \
-   ~/.openclaw/workspace/skills/laravel-creem-agent/SKILL.md
+openclaw skills install openclaw-laravel-creem-agent-skill
 ```
 
-### 4b: Configure OpenClaw gateway
+The current checked-in version of the skill bundle in this demo repo lives at `/home/www/openclaw-laravel-creem-agent-skill`.
+
+### Configure OpenClaw gateway
 
 Edit `~/.openclaw/openclaw.json`:
 
@@ -152,16 +152,15 @@ Edit `~/.openclaw/openclaw.json`:
   },
   skills: {
     entries: {
-      "laravel-creem-agent": {
-        enabled: true,
-        env: {
-          AGENT_URL: "http://127.0.0.1:8000/creem-agent/chat"
-        }
+      "openclaw-laravel-creem-agent-skill": {
+        enabled: true
       }
     }
   }
 }
 ```
+
+For the checked-in local demo stack, the skill is fixed to `http://127.0.0.1:8000/creem-agent/chat` and does not require extra skill env configuration.
 
 Set `gateway.sharedSecret` to the same value you use for `OPENCLAW_SHARED_SECRET` in `app/.env`.
 
@@ -174,7 +173,7 @@ set -a && source app/.env && set +a && sudo su - openclaw -c 'OPENCLAW_TELEGRAM_
 
 This only replaces the placeholder strings from the example block. If you already edited `~/.openclaw/openclaw.json` manually to other values, update it by hand instead.
 
-### 4c: Switch the app into OpenClaw mode
+### Switch the app into OpenClaw mode
 
 All OpenClaw keys are already present in `app/.env` (copied from `app/.env.example`). You only need to flip the two flags and fill in your real values:
 
@@ -205,7 +204,7 @@ After editing `.env`, restart the agent services (no rebuild needed):
 docker compose up -d app queue scheduler
 ```
 
-### 4d: Start gateway and verify
+### Start gateway and verify
 
 ```bash
 sudo su - openclaw
