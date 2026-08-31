@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laravel Creem Agent Demo - Printable Script</title>
+  <style>
+    body {
+      font-family: Liberation Serif, serif;
+      font-size: 12pt;
+      line-height: 1.35;
+      margin: 1.6cm;
+      color: #111;
+    }
+
+    h1,
+    h2,
+    p,
+    li {
+      font-size: 12pt;
+    }
+
+    h1,
+    h2 {
+      font-weight: 700;
+      margin: 0 0 0.45em;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    h2 {
+      margin-top: 1.1em;
+    }
+
+    p {
+      margin: 0 0 0.7em;
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid #bbb;
+      margin: 1em 0;
+    }
+
+    .note {
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>Laravel Creem Agent Demo - Printable Script</h1>
+
+  <p class="note">This is a print-friendly reading version of the demo script. It removes most screen-direction noise and keeps only the spoken text, with light emphasis for important points.</p>
+
+  <hr>
+
+  <h2>Intro</h2>
+
+  <p>Hi. In this video I'm going to show you a Laravel-based AI agent that monitors a Creem payment store around the clock.</p>
+
+  <p>This video is part of my submission for the <strong>OpenClaw plus Creem AI Agent Worker bounty</strong>.</p>
+
+  <p>Before we go into the terminal, let me give quick context on <strong>Creem.io</strong>.</p>
+
+  <p>Creem is a <strong>Merchant of Record</strong> platform. That means Creem can handle the commercial side of selling for you: <strong>payments, invoicing, tax handling, and the customer-facing transaction record</strong>.</p>
+
+  <p>Creem also supports <strong>revenue splits</strong>. This is useful when one payment needs to be shared across partners, creators, collaborators, or internal stakeholders.</p>
+
+  <p>And it includes a <strong>built-in affiliate program</strong>, so you can track referrals and reward affiliates without stitching together a separate external system.</p>
+
+  <p>For an AI agent, this makes Creem a very interesting platform, because the store is not just about raw payments. It also has <strong>subscription state, partner payouts, and acquisition workflows</strong> that can be monitored automatically.</p>
+
+  <hr>
+
+  <h2>Entering the Demo Environment</h2>
+
+  <p>Now let's enter the demo environment.</p>
+
+  <p>Everything you see in the terminal is running inside a <strong>VirtualBox virtual machine</strong>. I'm connected to it over <strong>SSH</strong> from my local machine.</p>
+
+  <p>The project uses <strong>four modular Laravel packages</strong>: an SDK, a CLI, the agent itself, and a payment simulator that lets us test everything without real API keys.</p>
+
+  <hr>
+
+  <h2>Docker Stack</h2>
+
+  <p>Let's look at what's running.</p>
+
+  <p>We have five Docker containers. The main app is powered by <strong>FrankenPHP and Laravel Octane</strong>. There's a queue worker for async jobs, a scheduler for the heartbeat cron, a simulator that mocks the entire Creem API, and an ngrok tunnel so Telegram webhooks can reach us.</p>
+
+  <p>All of this starts with a single <strong>docker compose up</strong> command.</p>
+
+  <hr>
+
+  <h2>Simulator Seeding</h2>
+
+  <p>First, we seed the simulator with test data. I can choose exactly how many products, customers, subscriptions, and transactions to create.</p>
+
+  <p>Here I'm running it twice with different parameters. Six products, forty customers, and a hundred twenty transactions in the first run. Then a smaller set: two products, ten customers, and twenty-five transactions.</p>
+
+  <p>The <strong>reset</strong> flag clears everything before seeding, so we always start from a known state.</p>
+
+  <hr>
+
+  <h2>Advancing the Scenario</h2>
+
+  <p>Now let's simulate what happens in a real store. The advance command creates new events: a sale and a past-due subscription, and sends signed webhooks back to the agent app.</p>
+
+  <p>Watch the bottom of the screen. The webhook was delivered, status two hundred, message: <strong>webhook processed</strong>. That means the agent received it and triggered the notification pipeline.</p>
+
+  <hr>
+
+  <h2>Telegram Alert</h2>
+
+  <p>And here it is in Telegram. The agent sent a <strong>real-time alert</strong>: new sale, product name, amount, and customer email. This happened within seconds of the simulator firing the webhook.</p>
+
+  <hr>
+
+  <h2>Complex Scenario</h2>
+
+  <p>Let's push harder.</p>
+
+  <p>First advance: one sale and one past-due. Second advance: two sales, a new customer, one past-due, and two cancellations. All with webhooks enabled.</p>
+
+  <p>Four webhook deliveries in the second batch: two checkouts and two cancellations. Each one triggers a separate notification.</p>
+
+  <hr>
+
+  <h2>Telegram Batch Alerts</h2>
+
+  <p>And Telegram lights up.</p>
+
+  <p>Three new sale alerts with product names and amounts. Two subscription cancellation alerts with subscription IDs and customer emails. All arriving in real time, in the order they happened.</p>
+
+  <hr>
+
+  <h2>Curl API</h2>
+
+  <p>You don't need Telegram to talk to the agent. A simple <strong>curl</strong> request works just as well.</p>
+
+  <p>Here I'm asking for the store status, and I get back the last heartbeat time, customer count, transaction count, and subscription breakdown.</p>
+
+  <p>Then I ask, <strong>any payment issues?</strong> and the agent checks for past-due subscriptions.</p>
+
+  <hr>
+
+  <h2>Telegram Natural Language</h2>
+
+  <p>The same thing works in Telegram with natural language.</p>
+
+  <p>I type, <strong>how's the store doing?</strong> and the agent gives me a full status report. I type, <strong>are there any issues?</strong> and it tells me about past-due subscriptions.</p>
+
+  <p>This works the same way whether the message comes through the direct Laravel webhook path or through OpenClaw. There's no separate mode to switch. Just talk to it.</p>
+
+  <hr>
+
+  <h2>Heartbeat via Telegram</h2>
+
+  <p>Now let me show the heartbeat.</p>
+
+  <p>I'll advance the simulator with five new sales, but without sending webhooks this time. The agent doesn't know about these sales yet.</p>
+
+  <p>Then I go to Telegram and ask the agent to run the heartbeat. Notice I'm using plain English: <strong>there was a bug in heartbeat, run it again</strong>.</p>
+
+  <p>The agent understands the intent, runs the heartbeat check, and comes back with a full change report.</p>
+
+  <p>Five new sales detected, with product names, amounts, and customer emails. One new customer added. All discovered by comparing the current state against the last saved snapshot.</p>
+
+  <hr>
+
+  <h2>Closing</h2>
+
+  <p>That's the system.</p>
+
+  <p>Four modular packages, a deterministic simulator, a two-tier AI classifier, and real-time notifications in Telegram.</p>
+
+  <p>Everything runs in Docker. Everything is tested with the simulator. No real payment API keys are needed for the demo.</p>
+
+  <p>The source code is on GitHub. Links are in the description.</p>
+
+  <p>Thanks for watching.</p>
+</body>
+</html>
