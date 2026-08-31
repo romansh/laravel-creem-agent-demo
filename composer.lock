@@ -3352,16 +3352,16 @@
         },
         {
             "name": "romansh/laravel-creem-agent",
-            "version": "v1.2.13",
+            "version": "v1.2.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/romansh/laravel-creem-agent.git",
-                "reference": "8bc284ef128e469a1e595ac216f1b89759c02393"
+                "reference": "cbc2d99d0150901bec1a09156f44cfafbf2a44be"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/romansh/laravel-creem-agent/zipball/8bc284ef128e469a1e595ac216f1b89759c02393",
-                "reference": "8bc284ef128e469a1e595ac216f1b89759c02393",
+                "url": "https://api.github.com/repos/romansh/laravel-creem-agent/zipball/cbc2d99d0150901bec1a09156f44cfafbf2a44be",
+                "reference": "cbc2d99d0150901bec1a09156f44cfafbf2a44be",
                 "shasum": ""
             },
             "require": {
@@ -3411,9 +3411,9 @@
             ],
             "support": {
                 "issues": "https://github.com/romansh/laravel-creem-agent/issues",
-                "source": "https://github.com/romansh/laravel-creem-agent/tree/v1.2.13"
+                "source": "https://github.com/romansh/laravel-creem-agent/tree/v1.2.14"
             },
-            "time": "2026-03-30T09:08:21+00:00"
+            "time": "2026-03-30T19:45:25+00:00"
         },
         {
             "name": "romansh/laravel-creem-cli",
